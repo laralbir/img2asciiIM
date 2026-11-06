@@ -7,4 +7,35 @@
     <string name="main_targets_heading">Canales de mensajería previstos</string>
     <string name="main_loading_description">Cargando estado inicial</string>
     <string name="main_error_message">Error al cargar el estado: %1$s</string>
+
+    <!-- Converter Screen -->
+    <string name="converter_offline_pill">100% OFFLINE</string>
+    <string name="source_heading">Origen de imagen</string>
+    <string name="source_gallery">Galería</string>
+    <string name="source_gallery_desc">Abrir selector de fotos local</string>
+    <string name="source_documents">Drive / Archivos</string>
+    <string name="source_documents_desc">Abrir selector de archivos o Google Drive</string>
+    <string name="source_camera">Cámara</string>
+    <string name="source_camera_desc">Tomar una foto con la cámara</string>
+    <string name="source_demo">Muestra</string>
+    <string name="source_demo_desc">Cargar imagen de muestra a bordo</string>
+
+    <string name="platform_heading">Destino de mensajería</string>
+    <string name="charset_heading">Modo de arte</string>
+    <string name="bubble_preview_heading">Vista previa del mensaje</string>
+    <string name="bubble_theme_toggle_desc">Cambiar fondo claro u oscuro de la burbuja</string>
+    <string name="autoscale_badge">Ajustado al límite</string>
+    <string name="warning_instagram_proportional">Instagram Direct usa fuentes proporcionales; el modo ASCII puede desalinearse. Se recomienda Braille HD.</string>
+
+    <string name="adjustments_heading">Ajustes de imagen y trama</string>
+    <string name="slider_columns">Columnas: %1$d</string>
+    <string name="slider_brightness">Brillo: %1$+.2f</string>
+    <string name="slider_contrast">Contraste: %1$.2fx</string>
+    <string name="toggle_invert">Invertir blanco / negro</string>
+    <string name="dither_heading">Algoritmo de trama (dithering)</string>
+    <string name="btn_reset_adjustments">Restablecer ajustes</string>
+
+    <string name="btn_copy">Copiar</string>
+    <string name="btn_share">Enviar a %1$s</string>
+    <string name="dismiss_banner">Cerrar</string>
 </resources>
