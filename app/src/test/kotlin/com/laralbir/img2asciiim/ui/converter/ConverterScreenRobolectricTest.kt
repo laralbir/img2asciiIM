@@ -176,4 +176,32 @@ class ConverterScreenRobolectricTest {
     // Proportional warning should exist
     composeTestRule.onNodeWithTag(ConverterTestTags.PROPORTIONAL_WARNING).assertExists()
   }
+
+  @Test
+  fun converterScreen_whenColumnsExceed32_showsWidthOverflowWarning() {
+    val repo = FakeImageSourceRepo()
+    val gateway = FakeShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repo,
+      messageShareGateway = gateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.setContent {
+      Img2asciiIMTheme {
+        ConverterScreen(
+          viewModel = viewModel,
+          onPrepareCameraCaptureTarget = { null },
+        )
+      }
+    }
+
+    viewModel.onWidthColumnsChanged(56)
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.onNodeWithTag(ConverterTestTags.WIDTH_OVERFLOW_WARNING).assertExists()
+  }
 }

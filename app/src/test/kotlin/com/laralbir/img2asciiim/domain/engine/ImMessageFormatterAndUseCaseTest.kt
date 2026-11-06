@@ -15,25 +15,36 @@ class ImMessageFormatterAndUseCaseTest {
   private val useCase = ImageToAsciiUseCase()
 
   @Test
-  fun formatsWhatsAppWithCompactSixCharTripleBacktickFenceAndNoLeadingSpace() {
+  fun formatsWhatsAppWithBrailleUnfencedByDefaultAndAsciiWithNewlineFenced() {
     val sample = DemoSampleImageFactory.createInFlightWindowSample(width = 80, height = 60)
-    val result = useCase(
+    val brailleResult = useCase(
+      pixelGrid = sample.pixelGrid,
+      params = ConversionParams(
+        preset = ImPlatformPreset.WHATSAPP,
+        charsetMode = CharsetMode.BRAILLE_UNICODE,
+        widthColumns = 30,
+      ),
+    )
+
+    assertFalse(brailleResult.usesMonospaceFence)
+    assertFalse(brailleResult.formattedMessage.contains("```"))
+    assertEquals(brailleResult.rawArt, brailleResult.formattedMessage)
+    assertTrue(brailleResult.charCount <= ImPlatformPreset.WHATSAPP.maxCharacters)
+
+    val asciiResult = useCase(
       pixelGrid = sample.pixelGrid,
       params = ConversionParams(
         preset = ImPlatformPreset.WHATSAPP,
         charsetMode = CharsetMode.ASCII_CLASSIC,
-        widthColumns = 32,
+        widthColumns = 30,
       ),
     )
 
-    assertTrue(result.usesMonospaceFence)
-    assertFalse(result.proportionalFontWarning)
-    assertTrue(result.formattedMessage.startsWith("```"))
-    assertFalse(result.formattedMessage.startsWith("``` "))
-    assertFalse(result.formattedMessage.startsWith("```\n"))
-    assertTrue(result.formattedMessage.endsWith("```"))
-    assertEquals(result.rawArt.length + 6, result.formattedMessage.length)
-    assertTrue(result.charCount <= ImPlatformPreset.WHATSAPP.maxCharacters)
+    assertTrue(asciiResult.usesMonospaceFence)
+    assertTrue(asciiResult.formattedMessage.startsWith("```\n"))
+    assertTrue(asciiResult.formattedMessage.endsWith("\n```"))
+    assertEquals(asciiResult.rawArt.length + 8, asciiResult.formattedMessage.length)
+    assertTrue(asciiResult.charCount <= ImPlatformPreset.WHATSAPP.maxCharacters)
   }
 
   @Test

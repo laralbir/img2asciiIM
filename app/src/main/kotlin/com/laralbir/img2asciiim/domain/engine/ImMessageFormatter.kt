@@ -13,13 +13,14 @@ import com.laralbir.img2asciiim.domain.model.ImPlatformPreset
 class ImMessageFormatter {
 
   fun usesMonospaceFence(preset: ImPlatformPreset, charsetMode: CharsetMode): Boolean = when (preset) {
-    ImPlatformPreset.WHATSAPP -> true
+    ImPlatformPreset.WHATSAPP -> charsetMode == CharsetMode.ASCII_CLASSIC
     ImPlatformPreset.TELEGRAM -> charsetMode == CharsetMode.ASCII_CLASSIC
     ImPlatformPreset.INSTAGRAM_DIRECT -> false
   }
 
   fun hasProportionalFontWarning(preset: ImPlatformPreset, charsetMode: CharsetMode): Boolean =
-    preset == ImPlatformPreset.INSTAGRAM_DIRECT && charsetMode == CharsetMode.ASCII_CLASSIC
+    (preset == ImPlatformPreset.INSTAGRAM_DIRECT || preset == ImPlatformPreset.WHATSAPP) &&
+      charsetMode == CharsetMode.ASCII_CLASSIC
 
   fun format(
     rawArt: String,
@@ -28,7 +29,11 @@ class ImMessageFormatter {
   ): String {
     val sanitized = rawArt.replace('`', '\'').replace("\r\n", "\n").replace('\r', '\n')
     return when (preset) {
-      ImPlatformPreset.WHATSAPP -> "```$sanitized```"
+      ImPlatformPreset.WHATSAPP -> if (charsetMode == CharsetMode.ASCII_CLASSIC) {
+        "```\n$sanitized\n```"
+      } else {
+        sanitized
+      }
       ImPlatformPreset.TELEGRAM -> if (charsetMode == CharsetMode.ASCII_CLASSIC) {
         "```\n$sanitized\n```"
       } else {

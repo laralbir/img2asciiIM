@@ -75,9 +75,9 @@ class ConverterViewModelTest {
 
         val result = assertNotNull(settled.conversionResult)
         assertTrue(result.rawArt.isNotBlank())
-        assertTrue(result.formattedMessage.startsWith("```"))
-        assertTrue(result.formattedMessage.endsWith("```"))
-        assertTrue(result.usesMonospaceFence)
+        assertEquals(CharsetMode.BRAILLE_UNICODE, settled.params.charsetMode)
+        assertEquals(result.rawArt, result.formattedMessage)
+        assertFalse(result.usesMonospaceFence)
         assertTrue(result.charCount <= ImPlatformPreset.WHATSAPP.maxCharacters)
         cancelAndIgnoreRemainingEvents()
       }

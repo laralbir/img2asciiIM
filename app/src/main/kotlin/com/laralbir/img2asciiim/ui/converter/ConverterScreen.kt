@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -96,6 +97,7 @@ object ConverterTestTags {
   const val BTN_COPY = "btn_action_copy"
   const val BTN_SHARE = "btn_action_share"
   const val PROPORTIONAL_WARNING = "proportional_font_warning"
+  const val WIDTH_OVERFLOW_WARNING = "width_overflow_warning"
   const val ERROR_BANNER = "error_banner_card"
   const val SLIDER_WIDTH = "slider_width_columns"
   const val SLIDER_BRIGHTNESS = "slider_brightness"
@@ -514,6 +516,34 @@ private fun ChatBubblePreviewSection(
       }
     }
 
+    // Mobile width overflow warning (> 32 columns)
+    if (uiState.params.widthColumns > 32) {
+      Card(
+        modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.WIDTH_OVERFLOW_WARNING),
+        colors = CardDefaults.cardColors(
+          containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
+          contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+      ) {
+        Row(
+          modifier = Modifier.padding(10.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(18.dp),
+          )
+          Text(
+            text = "⚠️ Ancho de ${uiState.params.widthColumns} cols excede el ancho de pantalla móvil (~32 cols). En WhatsApp y Telegram las líneas se cortarán y la imagen se verá rota. Recomendado: 28–32 columnas.",
+            style = MaterialTheme.typography.bodySmall,
+          )
+        }
+      }
+    }
+
     // Chat Bubble Container
     val bubbleBgColor = if (uiState.previewDarkBubble) {
       Color(0xFF131F2E) // Authentic dark chat bubble
@@ -638,10 +668,23 @@ private fun AdjustmentsSection(
       if (expanded) {
         // Slider Width Columns
         Column {
-          Text(
-            text = stringResource(R.string.slider_columns, params.widthColumns),
-            style = MaterialTheme.typography.bodySmall,
-          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Text(
+              text = stringResource(R.string.slider_columns, params.widthColumns),
+              style = MaterialTheme.typography.bodySmall,
+            )
+            if (params.widthColumns > 32) {
+              Text(
+                text = "⚠️ > 32 cols cortará líneas",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+              )
+            }
+          }
           Slider(
             value = params.widthColumns.toFloat(),
             onValueChange = { onWidthChanged(it.toInt()) },
@@ -649,6 +692,24 @@ private fun AdjustmentsSection(
             steps = 31,
             modifier = Modifier.testTag(ConverterTestTags.SLIDER_WIDTH),
           )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+          ) {
+            listOf(24, 28, 30, 32).forEach { cols ->
+              FilterChip(
+                selected = params.widthColumns == cols,
+                onClick = { onWidthChanged(cols) },
+                label = {
+                  Text(
+                    text = if (cols == 30) "$cols (Óptimo)" else "$cols cols",
+                    style = MaterialTheme.typography.labelSmall,
+                  )
+                },
+                modifier = Modifier.weight(1f),
+              )
+            }
+          }
         }
 
         // Slider Brightness
@@ -741,10 +802,12 @@ private fun BottomActionControls(
   Surface(
     shadowElevation = 8.dp,
     color = MaterialTheme.colorScheme.surfaceContainer,
+    modifier = Modifier.fillMaxWidth(),
   ) {
     Row(
       modifier = Modifier
         .fillMaxWidth()
+        .navigationBarsPadding()
         .padding(horizontal = 16.dp, vertical = 12.dp),
       horizontalArrangement = Arrangement.spacedBy(12.dp),
       verticalAlignment = Alignment.CenterVertically,

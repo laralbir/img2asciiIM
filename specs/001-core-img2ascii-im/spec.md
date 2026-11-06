@@ -245,6 +245,20 @@ La aplicación **debe** contar con una identidad visual propia, coherente con [`
   - **When:** Se ejecuta la validación automatizada de activos de marca.
   - **Then:** Existen `docs/assets/icon-512.png` (PNG válido de exactamente `512 × 512 px`) y `docs/assets/launch-feature-1024x500.png` (PNG válido de exactamente `1024 × 500 px`), alineados estéticamente con `docs/assets/banner.png` y los vectores del launcher.
 
+### RF-06: Respeto de Márgenes de Pantalla Móvil e Insets del Sistema (`Edge-to-Edge`)
+
+La aplicación **debe** garantizar un diseño ergonómico adaptable tanto al sistema operativo como a las limitaciones físicas de visualización en clientes de mensajería móvil:
+
+- **Criterio 06.1 — Margen de Navegación del Sistema en Barra de Acciones (`RNF-07`):**
+  - **Given:** La app ejecutándose en cualquier dispositivo Android con navegación gestual o barra clásica de 3 botones.
+  - **When:** Se renderiza la barra inferior de acciones fijas (`BottomActionControls`).
+  - **Then:** El contenedor de botones aplica `navigationBarsPadding()`, asegurando una separación táctil mínima de los botones respecto al borde inferior del sistema operativo sin solapamiento de la barra de navegación.
+
+- **Criterio 06.2 — Alerta de Desbordamiento de Ancho Móvil (> 32 Columnas):**
+  - **Given:** Una conversión configurada con ancho `widthColumns > 32`.
+  - **When:** Se observa la vista previa del mensaje o se ajusta el slider de columnas.
+  - **Then:** La interfaz muestra una advertencia visual destacada indicando que superar ~32 columnas provocará saltos de línea automáticos y deformación en clientes móviles de mensajería instantánea como WhatsApp y Telegram, sugiriendo usar 28–32 columnas o el modo Braille HD.
+
 ---
 
 ## 4. Restricciones de Dominio e Invariantes Técnicos
@@ -276,6 +290,7 @@ La aplicación **debe** contar con una identidad visual propia, coherente con [`
 | **RNF-04** | **Operación 100% Offline** | El 100% de las funciones de conversión, previsualización, copiado y lanzamiento de `ACTION_SEND` **deben** funcionar con el dispositivo en Modo Avión o conectado a Wi-Fi de avión restringido. | Prueba E2E en dispositivo con conectividad deshabilitada |
 | **RNF-05** | **Accesibilidad (`a11y`)** | Todos los botones e iconos tendrán `contentDescription` descriptivos en español, tamaño táctil mínimo `48dp × 48dp`, y el contenedor de vista previa agrupará su semántica (`clearAndSetSemantics`) para anunciar un resumen legible en **TalkBack** en lugar de leer cientos de símbolos Braille o ASCII uno tras otro. | Compose Semantics UI Test |
 | **RNF-06** | **Velocidad de Suite TDD** | Todos los tests unitarios de `domain/` **deben** ejecutarse en JVM pura en **`< 100 ms`** en conjunto. | Ejecución `./gradlew testDebugUnitTest` |
+| **RNF-07** | **Respeto de Insets de Navegación (Edge-to-Edge Safe Area)** | La barra inferior de acciones (`Copiar` y `Enviar a...`) **debe** aplicar obligatoriamente `navigationBarsPadding()` para garantizar que la barra de navegación del sistema Android (tanto barra de 3 botones como barra gestual) jamás se superponga ni interfiera con los botones de acción interactivos, extendiendo a su vez el fondo del contenedor hasta el borde inferior de la pantalla. | Compose UI Test y verificación en hardware físico USB |
 
 ---
 
