@@ -259,6 +259,54 @@ La aplicación **debe** garantizar un diseño ergonómico adaptable tanto al sis
   - **When:** Se observa la vista previa del mensaje o se ajusta el slider de columnas.
   - **Then:** La interfaz muestra una advertencia visual destacada indicando que superar ~32 columnas provocará saltos de línea automáticos y deformación en clientes móviles de mensajería instantánea como WhatsApp y Telegram, sugiriendo usar 28–32 columnas o el modo Braille HD.
 
+### RF-07: Generación y Decodificación de Enlaces Autónomos de Alta Definición (`Self-Contained Deep Links #data=...`)
+
+La aplicación **debe** permitir adjuntar opcionalmente un enlace web estándar (`https://laralbir.github.io/img2asciiIM/#data=...`) que contiene la imagen fotográfica comprimida y codificada en Base64 URL-safe dentro del hash fragment de la URL, funcionando como puente híbrido entre el arte de texto instantáneo y la fotografía original:
+
+- **Criterio 07.1 — Compresión y Codificación Autónoma de Enlace en Cliente:**
+  - **Given:** Una imagen cargada en la aplicación y el preset WhatsApp o Telegram activo.
+  - **When:** El usuario activa la opción «Adjuntar enlace de alta resolución».
+  - **Then:** El sistema comprime una versión miniatura optimizada de la imagen (JPEG/WebP compacto de ~4–10 KB), la codifica en Base64 URL-safe y genera la URL `https://laralbir.github.io/img2asciiIM/#data=<payload>`, asegurando que el mensaje total (arte de texto + salto + enlace) no supere el límite de caracteres de la plataforma (`65.536` en WhatsApp). En Instagram DM, la opción se deshabilita automáticamente dado su límite estricto de 1.000 caracteres.
+
+- **Criterio 07.2 — Ingesta y Reconstrucción por Deep Link (`Intent.ACTION_VIEW`):**
+  - **Given:** Un usuario en un dispositivo con `img2asciiIM` instalada que pulsa un enlace `https://laralbir.github.io/img2asciiIM/#data=...` o `?data=...` recibido en un chat.
+  - **When:** Android resuelve el intent `VIEW` hacia `MainActivity`.
+  - **Then:** La aplicación extrae el payload de datos del intent URI, reconstruye los píxeles originales en memoria de forma 100% offline (sin petición de red) y carga la imagen en la vista previa a todo color y alta resolución.
+
+- **Criterio 07.3 — Visor Web Estático de Respaldo (`docs/index.html`):**
+  - **Given:** Un destinatario que pulsa el enlace en un navegador web o en un dispositivo sin la app instalada.
+  - **When:** El navegador abre `https://laralbir.github.io/img2asciiIM/#data=...`.
+  - **Then:** La página estática HTML/JS (alojable en GitHub Pages sin servidor ni backend) lee `window.location.hash`, extrae el payload Base64 y dibuja la fotografía completa directamente en un `<canvas>` o `<img>` en el navegador.
+
+### RF-08: Publicación de Releases Firmadas en GitHub y Actualizaciones Automáticas In-App
+
+La aplicación **debe** contar con un sistema automatizado de integración y entrega continua (CI/CD) para publicar APKs firmadas con control de versiones semántico (`vX.Y.Z`) en GitHub Releases, así como un mecanismo nativo in-app para comprobar la existencia de nuevas versiones y guiar al usuario en su actualización sin depender de tiendas comerciales:
+
+- **Criterio 08.1 — Configuración Segura de Firma de Release en Gradle (`app/build.gradle.kts`):**
+  - **Given:** Un entorno de compilación de release (local o GitHub Actions runner).
+  - **When:** Se ejecuta `./gradlew assembleRelease`.
+  - **Then:** Gradle carga las credenciales de firma desde variables de entorno (`KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD`, `KEYSTORE_PASSWORD`) o `keystore.properties` si existen. En ausencia de credenciales de producción (ej. desarrollo local), recurre limpiamente a la clave de depuración (`debug.keystore`) permitiendo generar APKs instalables sin romper el build.
+
+- **Criterio 08.2 — Pipeline CI/CD Automatizado en GitHub Actions (`.github/workflows/release.yml`):**
+  - **Given:** Un push de etiqueta Git con formato de versión semántica `v*.*.*` (ej. `v1.0.0`).
+  - **When:** El flujo de trabajo de GitHub Actions se ejecuta en `ubuntu-latest` con JDK 21.
+  - **Then:** Se ejecutan todos los tests unitarios (`./gradlew testDebugUnitTest`), se compila el APK firmado `app-release.apk`, se calcula su suma criptográfica SHA-256 (`sha256sum app-release.apk > app-release.apk.sha256`) y se publica automáticamente la Release en GitHub con el APK, el fichero de checksum y las notas de cambios generadas a partir de Conventional Commits.
+
+- **Criterio 08.3 — Comprobador In-App de Nuevas Versiones (`GitHubUpdateChecker`):**
+  - **Given:** La app en ejecución y conectividad de red disponible.
+  - **When:** El usuario solicita comprobar actualizaciones (o la app realiza una comprobación opcional contra `https://api.github.com/repos/laralbir/img2asciiIM/releases/latest`).
+  - **Then:** La aplicación obtiene los metadatos JSON de la última release, extrae el tag (ej. `v1.1.0`), las notas de la versión y la URL directa del APK adjunto, y compara la versión contra `BuildConfig.VERSION_NAME` / `BuildConfig.VERSION_CODE`. Si existe una versión superior, expone el estado para notificar al usuario.
+
+- **Criterio 08.4 — Descarga e Instalación Asistida del APK:**
+  - **Given:** Una nueva versión detectada por el comprobador.
+  - **When:** El usuario pulsa «Actualizar» o «Descargar APK».
+  - **Then:** La app facilita la descarga directa del APK de la release o abre el navegador en el asset oficial de GitHub Releases para instalar la actualización.
+
+- **Criterio 08.5 — Resiliencia Total Offline (Sin Fallos en Vuelo):**
+  - **Given:** El usuario en Modo Avión o conectado a una red sin salida a internet (Wi-Fi de solo mensajería).
+  - **When:** La app comprueba actualizaciones.
+  - **Then:** La comprobación detecta la ausencia de conectividad o fallo de red y finaliza de manera silenciosa o con un aviso discreto («Sin conexión para comprobar actualizaciones»), sin provocar bloqueos, excepciones no capturadas ni degradar el conversor de imágenes.
+
 ---
 
 ## 4. Restricciones de Dominio e Invariantes Técnicos

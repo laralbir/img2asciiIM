@@ -153,3 +153,35 @@
   - **`[RED]`:** Actualizar `ConverterScreenRobolectricTest` verificando que: (1) `BottomActionControls` aplica `navigationBarsPadding` impidiendo el solapamiento con la barra de navegación del sistema; (2) cuando `widthColumns > 32`, se renderiza una advertencia visual destacada indicando riesgo de salto de línea en móviles; (3) WhatsApp preset adopta `BRAILLE_UNICODE` por defecto para prevenir deformaciones tipográficas proporcionales.
   - **`[GREEN]`:** Implementar `navigationBarsPadding()` en `BottomActionControls`, añadir chips rápidos de ancho móvil (`24`, `28`, `30`, `32`), aviso de desbordamiento en la vista previa y actualizar `WHATSAPP.defaultCharset = BRAILLE_UNICODE`.
   - **`[REFACTOR]`:** Desplegar en Pixel 10 Pro XL (`make deploy-usb`), verificar visualmente con captura de pantalla que la píldora gestual ya no solapa los botones y comprobar que todos los tests siguen en verde.
+
+---
+
+## Slice 10 — Enlace Autónomo de Alta Resolución (`#data=...`), Deep Linking y Visor Web Estático (`RF-07`)
+
+> **Cobertura:** `RF-07` (`CA-07.1` Compresión cliente + Base64 URL-safe, `CA-07.2` Ingesta Deep Link `ACTION_VIEW`, `CA-07.3` Visor web estático `docs/index.html`).
+
+- [ ] **Tarea 10.1 — Codificador y Decodificador Autónomo de Deep Link (`DeepLinkImageCodec`)**
+  - **`[RED]`:** Crear `DeepLinkImageCodecTest.kt` verificando: (1) comprime un `PixelGrid` a un payload Base64 URL-safe compacto (`<= 12 KB`); (2) decodifica una URL `https://laralbir.github.io/img2asciiIM/#data=...` o `?data=...` reconstruyendo el `PixelGrid` idéntico al original en memoria; (3) maneja payloads corruptos devolviendo error tipado sin lanzar excepciones. Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo (`RED`).
+  - **`[GREEN]`:** Implementar `DeepLinkImageCodec.kt` en `data/source/`.
+  - **`[REFACTOR]`:** Optimizar compresión JPEG/WebP a calidad 60 con dimensiones escaladas a max 320 px para que el payload quepa holgadamente en el límite de WhatsApp.
+
+- [ ] **Tarea 10.2 — Conexión en `MainActivity`, Conmutador UI y Visor Web Estático (`docs/index.html`)**
+  - **`[RED]`:** Actualizar `ConverterViewModelTest` y `ConverterScreenRobolectricTest` comprobando que: (1) `ConverterUiState.includeDeepLink` conmuta la adición del enlace `\n\n🔗 Ver foto en alta resolución:\nhttps://laralbir.github.io/img2asciiIM/#data=...` al final del mensaje formateado; (2) `AndroidManifest.xml` registra `<intent-filter>` con `ACTION_VIEW` para `https://laralbir.github.io/img2asciiIM/`; (3) existe `docs/index.html` con decodificación de hash en canvas. Ejecutar tests y confirmar fallo.
+  - **`[GREEN]`:** Añadir conmutador en `ConverterScreen`, registrar intent-filter en manifest, procesar intent `ACTION_VIEW` en `MainActivity.kt` y crear `docs/index.html`.
+  - **`[REFACTOR]`:** Desplegar en Pixel 10 Pro XL (`make deploy-usb`), validar apertura de enlace con adb (`am start -W -a android.intent.action.VIEW -d "https://laralbir.github.io/img2asciiIM/#data=..."`) y verificar que todos los tests pasan en verde.
+
+---
+
+## Slice 11 — Firma de Releases, Publicación CI/CD y Actualizaciones In-App (`RF-08`)
+
+> **Cobertura:** `RF-08` (`CA-08.1` Firma Gradle, `CA-08.2` Workflow GitHub Release, `CA-08.3` Checker in-app, `CA-08.4` Descarga/instalación, `CA-08.5` Resiliencia offline).
+
+- [ ] **Tarea 11.1 — Configuración Segura de Firma en Gradle y Workflow GitHub Actions (`.github/workflows/release.yml`)**
+  - **`[RED]`:** Crear verificación o test de configuración de firma en Gradle y comprobar soporte de variables de entorno (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) con fallback transparente a `debug`.
+  - **`[GREEN]`:** Configurar `signingConfigs` en `app/build.gradle.kts`. Crear el workflow `.github/workflows/release.yml` para compilar con JDK 21, firmar APK, calcular `sha256sum` y crear GitHub Release con notas semánticas automáticas ante tags `v*.*.*`.
+  - **`[REFACTOR]`:** Compilar `./gradlew assembleRelease` y comprobar que genera el APK de release sin errores.
+
+- [ ] **Tarea 11.2 — Comprobador In-App de Nuevas Versiones (`GitHubUpdateChecker`) y Resiliencia Offline**
+  - **`[RED]`:** Crear `GitHubUpdateCheckerTest.kt` verificando: (1) decodificación JSON de release de GitHub (`tag_name`, `body`, `browser_download_url`); (2) comparación semver determinista (`v1.1.0` > `v1.0.0`); (3) manejo seguro de timeouts y modo sin conexión sin lanzar excepciones no controladas (`CA-08.5`).
+  - **`[GREEN]`:** Implementar `GitHubUpdateChecker.kt` en `data/update/` y exponer comprobación en `ConverterViewModel`.
+  - **`[REFACTOR]`:** Integrar opción/aviso en `ConverterScreen` y probar en dispositivo.
