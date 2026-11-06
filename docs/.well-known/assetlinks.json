@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.laralbir.img2asciiim",
+      "sha256_cert_fingerprints": [
+        "B9:24:E7:A5:C9:53:5D:50:EC:19:CA:D0:1E:65:57:D8:19:A2:91:53:8A:8D:34:5A:0B:89:D3:B9:9E:8B:CB:B9",
+        "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C"
+      ]
+    }
+  }
+]

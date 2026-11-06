@@ -88,7 +88,7 @@ Si llevas en **Google Drive** (o en OneDrive / Dropbox) un plano del hotel, una 
 
 ## 3. Paso 1: Cómo Elegir o Capturar tu Imagen (4 Formas)
 
-El flujo completo en `img2asciiIM` está pensado para que pases de una foto a un mensaje listo en pocos segundos:
+Al abrir **`img2asciiIM`**, te recibe una pantalla completamente limpia y despejada (**Empty State**), sin fotografías de muestra ni demostraciones artificiales. Desde el primer segundo dispones de un lienzo listo con accesos directos claros para elegir tu imagen:
 
 ```mermaid
 flowchart TD
@@ -203,14 +203,14 @@ Por eso, si envías un retrato pensado para fondo claro a alguien que usa Modo O
 Justo debajo de los controles de nitidez encontrarás la sección **Componentes del mensaje**, que te permite decidir exactamente qué quieres incluir en el chat mediante dos casillas independientes:
 
 - **`[x] Incluir arte de texto (ASCII / Braille)`**
-- **`[x] Adjuntar enlace a foto HD (#data=...)`**
+- **`[x] Adjuntar enlace a foto HD (#d=...)`**
 
 ```mermaid
 flowchart TD
     Eleccion{"¿Qué componentes activas en Paso 4?"}
     Eleccion -->|"Solo Arte de Texto"| Modo1["Modo Clásico (Ultraligero)\nMensaje de texto puro (2-4 KB)\nMáxima privacidad y compatibilidad"]
-    Eleccion -->|"Arte + Enlace HD"| Modo2["Modo Híbrido Dual\nDibujo en la burbuja + Enlace debajo\nMiniatura compacta (~320 px)"]
-    Eleccion -->|"Solo Enlace HD"| Modo3["Modo Enlace HD Puro (Máxima Nitidez)\nTodo el presupuesto para la foto\nWhatsApp: 640-800 px (calidad 75)\nTelegram: 200-240 px (calidad 55)"]
+    Eleccion -->|"Arte + Enlace HD"| Modo2["Modo Híbrido Dual (Anti-División)\nDibujo + Enlace WebP (#d=...)\nAjuste automático a 1 sola burbuja"]
+    Eleccion -->|"Solo Enlace HD"| Modo3["Modo Enlace HD Puro (Máxima Nitidez WebP)\nTodo el presupuesto para la foto\nWhatsApp: 720-800 px (calidad 75-80)\nTelegram: 200-280 px (calidad 45-65)"]
 ```
 
 ### Los 3 Modos de Envío según tu Necesidad
@@ -220,28 +220,27 @@ flowchart TD
 - **Resultado:** Tu mensaje se compone únicamente del dibujo en puntos Braille, caracteres ASCII o bloques.
 - **Cuándo usarlo:** Cuando quieras enviar un mensaje ultraligero (apenas `2` a `4 KB`), sin enlaces web de ningún tipo, perfecto para el canal de texto más básico del avión o cuando tu contacto solo necesita ver el dibujo en su pantalla al instante.
 
-#### 2. Modo Híbrido: Arte de Texto + Enlace a Foto HD
+#### 2. Modo Híbrido Dual: Arte de Texto + Enlace a Foto HD *(Garantía Anti-División)*
 - **Ajuste:** `[x] Incluir arte de texto` activado · `[x] Adjuntar enlace a foto HD` activado.
-- **Resultado:** El mensaje muestra el dibujo en texto en la burbuja del chat y, tras un doble salto de renglón, añade el enlace oficial:
+- **Resultado:** El mensaje muestra el dibujo en texto en la burbuja del chat seguido de un salto de línea con el enlace canónico abreviado `#d=`:
   ```text
   <dibujo en braille o ascii>
-
-  🔗 Ver foto en alta definición:
-  https://laralbir.github.io/img2asciiIM/#data=...
+  https://laralbir.github.io/img2asciiIM/#d=...
   ```
-- **Cuándo usarlo:** Quieres el impacto visual inmediato del dibujo en el chat, pero además ofreces a tu contacto la posibilidad de abrir la foto original a color si pulsa el enlace.
-- **Detalle técnico:** En este modo, la imagen del enlace se comprime en tamaño miniatura (**hasta 320 px a calidad 60**) para que la suma del arte de texto y del enlace Base64 URL-safe quepa con total holgura dentro del límite de la plataforma.
+- **Sin textos superfluos:** Se eliminan cadenas decorativas como `"📸 Ver foto..."` o `"🔗 Ver foto..."`, ahorrando decenas de caracteres para dar más nitidez a la imagen.
+- **Garantía Anti-División en Telegram:** Telegram corta cualquier mensaje que supere los 4.096 caracteres, dividiéndolo en dos burbujas separadas. `img2asciiIM` lo evita por completo: fija un **presupuesto máximo de 3.900 caracteres** y calcula automáticamente:
+  $$\text{Presupuesto Enlace} = 3.900 - \text{Longitud del Arte} - 1$$
+  Si tu dibujo es grande, el codificador reduce la resolución y la calidad WebP de la foto al vuelo para que la suma total **quepa siempre dentro de un único mensaje de chat**.
 
 #### 3. Modo Enlace HD Puro: Máxima Nitidez Fotográfica *(Sin Arte de Texto)*
 - **Ajuste:** `[ ] Incluir arte de texto` desactivado · `[x] Adjuntar enlace a foto HD` activado.
 - **El secreto:** Al apagar el dibujo de texto, **todo el presupuesto de caracteres de la app de mensajería se dedica íntegramente a la fotografía incrustada en el enlace**.
-- **Resoluciones fotográficas alcanzadas:**
-  - **En WhatsApp:** WhatsApp admite mensajes de hasta **`65.536` caracteres**. Al no restar espacio con caracteres de arte, `img2asciiIM` escala y comprime la foto a resoluciones de **`640` a `800` píxeles a calidad 75** (generando un payload Base64 de entre `35` y `50 KB`, que viaja holgadamente dentro del límite permitido).
-  - **En Telegram:** Telegram limita cada mensaje a **`4.096` caracteres**. Sin arte de texto, la app escala la foto a **`200` a `240` píxeles a calidad 50–60** (~`2.800–3.800` caracteres Base64), asegurando que el mensaje completo entre en una **única burbuja sin cortarse**.
-- **El resultado en el chat:** Tu mensaje queda completamente limpio, profesional y directo:
+- **Códec WebP Lossy (Ahorro del 35 % al 50 %):** Gracias al formato moderno WebP Lossy, las imágenes ocupan casi la mitad que en JPEG a la misma calidad visual, permitiendo resoluciones mucho más altas:
+  - **En WhatsApp:** WhatsApp admite mensajes gigantescos de hasta **`65.536` caracteres**. `img2asciiIM` escala la foto a **`720` a `800` píxeles a calidad 75–80** (payload WebP de ~20–35 KB).
+  - **En Telegram:** Se ajusta a la cota estricta de **`3.900` caracteres**, escalando la foto a **`200` a `280` píxeles a calidad 45–65**, garantizando que llegue limpia y en una **única burbuja sin fragmentarse**.
+- **El resultado en el chat:** Tu mensaje queda completamente limpio y directo, compartiendo únicamente la URL:
   ```text
-  📸 Ver foto en alta definición:
-  https://laralbir.github.io/img2asciiIM/#data=...
+  https://laralbir.github.io/img2asciiIM/#d=...
   ```
 
 > [!TIP]
@@ -262,6 +261,11 @@ Cuando la vista previa de burbuja y los componentes seleccionados se vean a tu g
 - Si utilizas una variante oficial (como **WhatsApp Business** o **Telegram X**) o en ese teléfono no tienes instalada esa aplicación concreta, `img2asciiIM` abrirá automáticamente el menú estándar **Compartir** de Android para que puedas enviarlo por cualquier otra vía sin errores.
 
 > [!NOTE]
+> **Entrega Segura Clipboard-First en WhatsApp (Fotos de Gran Resolución):**
+> WhatsApp admite mensajes gigantescos de hasta `65.536` caracteres. Sin embargo, en algunas versiones de Android o de WhatsApp, el sistema de intercambio de datos entre aplicaciones (`Intent`) puede llegar a recortar textos extremadamente largos.  
+> Para que nunca pierdas ni un solo píxel, `img2asciiIM` aplica la técnica **Clipboard-First**: **guarda automáticamente todo el mensaje en el portapapeles** antes de abrir WhatsApp y te muestra un aviso en pantalla. Si al abrir el chat ves que WhatsApp ha recortado el enlace, solo tienes que **mantener pulsado el campo de escritura y tocar «Pegar»**. ¡Tu mensaje íntegro aparecerá de inmediato!
+
+> [!NOTE]
 > **¿Cómo funciona el envío rápido a Instagram Direct (*Copiado Automático*)?**
 > Por limitaciones propias de la app de Instagram en Android, algunas versiones abren la lista de chats pero ignoran los textos externos cuando no contienen un enlace web tradicional.
 > Para que nunca pierdas un segundo, al pulsar **«Enviar a Instagram»**, `img2asciiIM` **guarda siempre primero tu arte en el portapapeles de forma automática** antes de abrir Instagram:
@@ -277,7 +281,7 @@ Cuando la vista previa de burbuja y los componentes seleccionados se vean a tu g
 
 ---
 
-## 8. Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#data=...`)
+## 8. Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)
 
 Tal vez te preguntes: *¿Cómo es posible enviar una foto dentro de un enlace web si el Wi-Fi del avión tiene bloqueada la subida de fotos y no me deja navegar por páginas web?*
 
@@ -288,30 +292,38 @@ En un sistema convencional de internet, para mandar una foto tienes que subirla 
 En cambio, `img2asciiIM` genera un **enlace 100 % autónomo y autosuficiente**:
 
 ```text
-https://laralbir.github.io/img2asciiIM/#data=UklGRvAAAABXRUJQVlA4...
+https://laralbir.github.io/img2asciiIM/#d=UklGRvAAAABXRUJQVlA4...
 ```
 
-1. Toda la imagen fotográfica (comprimida en JPEG/WebP) se traduce a una secuencia de letras y números llamada **Base64 URL-safe**.
-2. Esa secuencia se coloca detrás del símbolo de almohadilla **`#data=`** (*hash fragment*).
+1. Toda la fotografía se comprime en el formato ultraligero **WebP Lossy** y se traduce a una secuencia de caracteres llamada **Base64 URL-safe**.
+2. Esa secuencia se coloca detrás del identificador corto **`#d=`** (*hash fragment*).
 3. Para el router del avión y para la aplicación de chat, ese enlace es simplemente **un mensaje de texto plano ordinario**, por lo que **atraviesa el cortafuegos satelital sin ningún bloqueo**.
 4. La parte detrás del `#` jamás se transmite a ningún servidor de internet ni a terceros: se procesa íntegramente en el dispositivo de quien abre el enlace.
 
-### Qué Ocurre Cuando tu Amigo Abre el Enlace
+### Qué Ocurre Cuando tu Amigo Abre el Enlace (y Cómo Abrirlo en la App)
 
 El enlace funciona para cualquier persona y en cualquier dispositivo:
 
 ```mermaid
 flowchart TD
-    Enlace["Tu amigo pulsa el enlace https://laralbir.github.io/img2asciiIM/#data=..."]
+    Enlace["Tu amigo pulsa el enlace https://laralbir.github.io/img2asciiIM/#d=..."]
     Enlace --> Dispositivo{"¿Tiene instalada img2asciiIM en su Android?"}
-    Dispositivo -- "SÍ" --> Nativo["Apertura directa en img2asciiIM (Deep Link)\nReconstrucción en pantalla en milisegundos\n100% OFFLINE (Cero gasto de datos)"]
-    Dispositivo -- "NO (o usa iPhone / PC)" --> Web["Abre en navegador web (Chrome, Safari, Firefox)\nVisor estático HTML5 / Canvas en docs/index.html\nDecodifica el hash en pantalla sin servidor externo"]
+    Dispositivo -- "SÍ (Apertura directa)" --> Nativo["Apertura directa en img2asciiIM (App Link)\nReconstrucción en pantalla en milisegundos\n100% OFFLINE (Cero gasto de datos)"]
+    Dispositivo -- "NO (o abre en navegador)" --> Web["Abre en navegador web (Chrome, Safari, Firefox)\nVisor estático HTML5 / Canvas en docs/index.html\nDecodifica el hash en pantalla sin servidor externo"]
+    Web --> Banner["Banner interactivo en visor web:\n'📱 Abrir en la app img2asciiIM'"]
+    Banner --> Nativo
 ```
 
-- **Si tu contacto tiene `img2asciiIM` en Android:**
-  Android detecta el enlace automáticamente (`Intent.ACTION_VIEW`), abre la app de inmediato, extrae los datos y **dibuja la fotografía original en alta definición a todo color**, sin necesidad de internet y sin gastar ni un solo megabyte de datos.
-- **Si tu contacto no tiene la app instalada (o usa iPhone, iPad o PC):**
-  El enlace se abre en su navegador web preferido (Safari, Chrome, Edge, Firefox). Una página web estática ultraligera alojada en GitHub Pages lee el fragmento `#data=...` con JavaScript directamente en el navegador del usuario y **proyecta la fotografía en pantalla** en menos de una décima de segundo, ofreciendo además un enlace para descargar la app en Android si lo desea.
+#### 1. Si tu contacto tiene `img2asciiIM` instalada en Android:
+- **Apertura Directa por App Link:** Android detecta automáticamente el enlace (`Intent.ACTION_VIEW`), abre la app de inmediato, extrae los datos y **dibuja la fotografía original en alta definición a todo color**, sin necesidad de internet y sin gastar ni un solo megabyte de datos.
+- **¿Qué pasa si el enlace se abrió dentro del navegador de Telegram o Chrome?**
+  No te preocupes: en la parte superior del visor web aparecerá un botón destacado:
+  **«📱 Abrir en la app img2asciiIM»**.
+  Al tocarlo, el navegador invoca el esquema directo `img2asciiim://view?d=...` y la imagen salta al instante dentro de la aplicación nativa instalada.
+
+#### 2. Si tu contacto no tiene la app instalada (o usa iPhone, iPad o PC):
+- El enlace se abre en su navegador web habitual (Safari, Chrome, Edge, Firefox).
+- Una página web estática ultraligera alojada en GitHub Pages lee el fragmento `#d=...` con JavaScript directamente en el navegador del usuario y **proyecta la fotografía en pantalla** en menos de una décima de segundo, ofreciendo además un botón directo para descargar el APK firmado en Android si lo desea.
 
 ---
 
@@ -351,7 +363,22 @@ Cada actualización oficial de `img2asciiIM` se compila y firma automáticamente
 ---
 
 ### «¿Por qué se ve mejor la foto cuando apago el conmutador de arte de texto?»
-Al desactivar el arte de texto (ASCII / Braille), el mensaje no tiene que reservar caracteres para dibujar filas de puntos. Todo el cupo disponible (hasta **`65.536` caracteres en WhatsApp**) pasa a estar disponible para la foto del enlace, permitiendo a la app comprimir la imagen con una resolución mucho mayor (**`640` a `800` píxeles**) y una calidad fotográfica visiblemente superior.
+Al desactivar el arte de texto (ASCII / Braille), el mensaje no tiene que reservar caracteres para dibujar filas de puntos. Todo el cupo disponible (hasta **`65.536` caracteres en WhatsApp** o **`3.900` en Telegram**) pasa a estar disponible para la foto del enlace, permitiendo a la app comprimir la imagen en **WebP Lossy** con una resolución mucho mayor (**`720` a `800` píxeles en WhatsApp**) y una nitidez fotográfica visiblemente superior.
+
+---
+
+### «¿Por qué Telegram nunca divide mis mensajes largos en dos burbujas de chat?»
+Telegram impone un límite estricto de `4.096` caracteres por mensaje y parte en dos cualquier texto que lo supere. `img2asciiIM` aplica una **garantía anti-división**: fija un tope máximo de **`3.900` caracteres** y, cuando combinas arte de texto y enlace HD, calcula dinámicamente `3.900 - art.length - 1`, ajustando la resolución y calidad de la foto para que la suma total quepa de forma garantizada en un **único mensaje continuo**.
+
+---
+
+### «¿Por qué al enviar a WhatsApp me avisa de que el mensaje se copió al portapapeles?»
+WhatsApp permite mensajes de hasta `65.536` caracteres, pero algunas versiones de Android o del propio WhatsApp pueden recortar textos extensos cuando se envían a través del menú Compartir (`Intent`). Para evitar cualquier pérdida, `img2asciiIM` utiliza la estrategia **Clipboard-First**: copia el mensaje íntegro a tu portapapeles antes de abrir WhatsApp. Si WhatsApp no pega el texto completo en el chat, solo tienes que **mantener pulsado y darle a Pegar**.
+
+---
+
+### «¿Cómo abro una foto en la app de `img2asciiIM` si el enlace se me abrió en el navegador web?»
+Si tocas un enlace `#d=...` en un chat y se abre en Chrome o en el navegador interno de Telegram en lugar de en la app, fíjate en la parte superior de la página: verás un banner que dice **«¿Tienes la app instalada en tu móvil? 📱 Abrir en la app img2asciiIM»**. Al tocarlo, el navegador llamará al esquema nativo `img2asciiim://` y abrirá la imagen al instante dentro de tu app 100% offline.
 
 ---
 

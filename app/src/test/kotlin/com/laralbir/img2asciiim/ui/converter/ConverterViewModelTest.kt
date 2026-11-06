@@ -549,12 +549,17 @@ class ConverterViewModelTest {
   fun togglingAttachDeepLinkAppendsUrlToFormattedMessage() = runTest(testDispatcher) {
     val repository = FakeImageSourceRepository()
     val shareGateway = FakeMessageShareGateway()
+    var lastBudget: Int? = null
     val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
       override fun encodeToDeepLink(
         pixelGrid: PixelGrid,
         mode: com.laralbir.img2asciiim.data.source.DeepLinkMode,
         preset: ImPlatformPreset,
-      ): String = "https://laralbir.github.io/img2asciiIM/#data=fake_payload"
+        maxCharacterBudget: Int?,
+      ): String {
+        lastBudget = maxCharacterBudget
+        return "https://laralbir.github.io/img2asciiIM/#data=fake_payload"
+      }
     }
     val viewModel = ConverterViewModel(
       imageSourceRepository = repository,
@@ -578,8 +583,12 @@ class ConverterViewModelTest {
 
     val linkedMessage = viewModel.buildShareableMessage()
     assertNotNull(linkedMessage)
-    assertTrue(linkedMessage.contains("https://laralbir.github.io/img2asciiIM/#data=fake_payload"))
-    assertTrue(linkedMessage.contains("🔗 Ver foto en alta definición:"))
+    val art = viewModel.uiState.value.conversionResult!!.formattedMessage
+    assertEquals("$art\nhttps://laralbir.github.io/img2asciiIM/#data=fake_payload", linkedMessage)
+    assertFalse(linkedMessage.contains("🔗 Ver foto"))
+
+    val expectedRemaining = (ImPlatformPreset.WHATSAPP.maxCharacters - art.length - 1).coerceAtLeast(200)
+    assertEquals(expectedRemaining, lastBudget)
 
     // Sharing sends the linked message
     viewModel.onShareClicked()
@@ -591,12 +600,17 @@ class ConverterViewModelTest {
   fun togglingOffAsciiArtEnablesExpandedHdDeepLinkWithoutAsciiArt() = runTest(testDispatcher) {
     val repository = FakeImageSourceRepository()
     val shareGateway = FakeMessageShareGateway()
+    var lastBudget: Int? = null
     val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
       override fun encodeToDeepLink(
         pixelGrid: PixelGrid,
         mode: com.laralbir.img2asciiim.data.source.DeepLinkMode,
         preset: ImPlatformPreset,
-      ): String = "https://laralbir.github.io/img2asciiIM/#data=fake_hd_payload"
+        maxCharacterBudget: Int?,
+      ): String {
+        lastBudget = maxCharacterBudget
+        return "https://laralbir.github.io/img2asciiIM/#data=fake_hd_payload"
+      }
     }
     val viewModel = ConverterViewModel(
       imageSourceRepository = repository,
@@ -617,16 +631,132 @@ class ConverterViewModelTest {
     val message = viewModel.buildShareableMessage()
     assertNotNull(message)
     assertEquals(
-      "📸 Ver foto en alta resolución:\nhttps://laralbir.github.io/img2asciiIM/#data=fake_hd_payload",
+      "https://laralbir.github.io/img2asciiIM/#data=fake_hd_payload",
       message,
     )
-    // Must NOT contain braille or ascii blocks
+    // Must NOT contain braille, ascii blocks, or intro text
     assertFalse(message.contains("```"))
-    assertFalse(message.contains("\n\n🔗 Ver foto"))
+    assertFalse(message.contains("📸 Ver foto"))
+    assertFalse(message.contains("🔗 Ver foto"))
+    assertEquals(ImPlatformPreset.WHATSAPP.maxCharacters, lastBudget)
 
     viewModel.onCopyClicked()
     advanceUntilIdle()
     assertEquals(message, shareGateway.lastCopiedText)
+  }
+
+  @Test
+  fun telegramPreset_calculatesBudgetStrictlyCappedTo3900Characters() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    var lastBudget: Int? = null
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun encodeToDeepLink(
+        pixelGrid: PixelGrid,
+        mode: com.laralbir.img2asciiim.data.source.DeepLinkMode,
+        preset: ImPlatformPreset,
+        maxCharacterBudget: Int?,
+      ): String {
+        lastBudget = maxCharacterBudget
+        return "https://laralbir.github.io/img2asciiIM/#data=fake_telegram_payload"
+      }
+    }
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.onSelectPreset(ImPlatformPreset.TELEGRAM)
+    advanceUntilIdle()
+    assertEquals(3_900, ImPlatformPreset.TELEGRAM.maxCharacters)
+    assertEquals(28, ImPlatformPreset.TELEGRAM.defaultWidthColumns)
+    assertTrue(ImPlatformPreset.TELEGRAM.usesClipboardFirst)
+
+    // 1. Expanded HD mode (no ASCII art) -> exactly 3_900 budget
+    viewModel.onToggleIncludeAsciiArt(false)
+    val hdMessage = viewModel.buildShareableMessage()
+    assertEquals("https://laralbir.github.io/img2asciiIM/#data=fake_telegram_payload", hdMessage)
+    assertEquals(3_900, lastBudget)
+
+    // 2. Standard mode (ASCII art + deep link) -> remainingBudget = (3_900 - art.length - 1).coerceAtLeast(200)
+    viewModel.onToggleIncludeAsciiArt(true)
+    viewModel.onToggleAttachDeepLink(true)
+    val standardMessage = viewModel.buildShareableMessage()
+    val art = viewModel.uiState.value.conversionResult!!.formattedMessage
+    val expectedRemaining = (3_900 - art.length - 1).coerceAtLeast(200)
+    assertEquals(expectedRemaining, lastBudget)
+    assertEquals("$art\nhttps://laralbir.github.io/img2asciiIM/#data=fake_telegram_payload", standardMessage)
+  }
+
+  @Test
+  fun sharingWithCopiedToClipboard_emitsSpanishPasteHintForPreset() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    assertTrue(ImPlatformPreset.WHATSAPP.usesClipboardFirst)
+    assertTrue(ImPlatformPreset.TELEGRAM.usesClipboardFirst)
+
+    viewModel.effects.test {
+      shareGateway.nextShareOutcome = ShareOutcome.OpenedDirectApp(
+        packageName = "com.whatsapp",
+        copiedToClipboard = true,
+      )
+      viewModel.onShareClicked()
+      val whatsAppSnackbar = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
+      assertEquals(
+        "Copiado al portapapeles. Si WhatsApp recorta el mensaje, mantén pulsado y pulsa Pegar.",
+        whatsAppSnackbar.message,
+      )
+
+      viewModel.onSelectPreset(ImPlatformPreset.TELEGRAM)
+      advanceUntilIdle()
+      shareGateway.nextShareOutcome = ShareOutcome.OpenedDirectApp(
+        packageName = "org.telegram.messenger",
+        copiedToClipboard = true,
+      )
+      viewModel.onShareClicked()
+      val telegramSnackbar = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
+      assertEquals(
+        "Copiado al portapapeles. Si Telegram recorta el mensaje, mantén pulsado y pulsa Pegar.",
+        telegramSnackbar.message,
+      )
+    }
+  }
+
+  @Test
+  fun coldStartDefaultConstructor_doesNotLoadDemo_initialStateEmpty() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+    )
+    val state = viewModel.uiState.value
+    assertNull(state.sourceOrigin)
+    assertEquals("Ninguna foto seleccionada", state.sourceLabel)
+    assertNull(state.conversionResult)
+    assertFalse(state.isLoadingImage)
+    assertFalse(state.isConverting)
+
+    viewModel.onCopyClicked()
+    viewModel.onShareClicked()
+    assertNull(shareGateway.lastCopiedText)
+    assertNull(shareGateway.lastSharedText)
   }
 
   @Test

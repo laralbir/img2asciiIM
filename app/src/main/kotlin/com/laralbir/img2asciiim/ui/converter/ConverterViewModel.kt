@@ -50,7 +50,7 @@ class ConverterViewModel(
   private val updateChecker: GitHubUpdateChecker = GitHubUpdateChecker(),
   private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
   private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-  loadDemoOnStart: Boolean = true,
+  loadDemoOnStart: Boolean = false,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(ConverterUiState())
@@ -236,20 +236,26 @@ class ConverterViewModel(
 
     return if (!state.includeAsciiArt) {
       // EXPANDED_HD mode: ASCII preview omitted, dedicating all bytes to the photo!
+      val maxAllowedTotal = preset.maxCharacters
       val deepLinkUrl = deepLinkCodec.encodeToDeepLink(
         pixelGrid = decoded.pixelGrid,
         mode = DeepLinkMode.EXPANDED_HD,
         preset = preset,
+        maxCharacterBudget = maxAllowedTotal,
       )
-      "📸 Ver foto en alta resolución:\n$deepLinkUrl"
+      deepLinkUrl
     } else {
       // STANDARD mode: Both ASCII art and deep link thumbnail
+      val art = result.formattedMessage
+      val maxAllowedTotal = preset.maxCharacters
+      val remainingBudget = (maxAllowedTotal - art.length - 1).coerceAtLeast(200)
       val deepLinkUrl = deepLinkCodec.encodeToDeepLink(
         pixelGrid = decoded.pixelGrid,
         mode = DeepLinkMode.STANDARD,
         preset = preset,
+        maxCharacterBudget = remainingBudget,
       )
-      "${result.formattedMessage}\n\n🔗 Ver foto en alta definición:\n$deepLinkUrl"
+      "$art\n$deepLinkUrl"
     }
   }
 
@@ -425,7 +431,7 @@ class ConverterViewModel(
   ): String = when (outcome) {
     is ShareOutcome.OpenedDirectApp -> {
       if (outcome.copiedToClipboard) {
-        "Arte copiado al portapapeles. Abriendo ${preset.displayName}: pega el mensaje en el chat."
+        "Copiado al portapapeles. Si ${preset.displayName} recorta el mensaje, mantén pulsado y pulsa Pegar."
       } else {
         "Abriendo ${preset.displayName} para enviar arte ($charCount caracteres)."
       }

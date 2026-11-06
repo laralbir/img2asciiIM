@@ -8,12 +8,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laralbir.img2asciiim.data.share.AndroidMessageShareGateway
 import com.laralbir.img2asciiim.data.source.AndroidImageSourceRepository
+import com.laralbir.img2asciiim.data.source.DeepLinkImageCodec
 import com.laralbir.img2asciiim.ui.converter.ConverterScreen
 import com.laralbir.img2asciiim.ui.converter.ConverterViewModel
 import com.laralbir.img2asciiim.ui.theme.Img2asciiIMTheme
@@ -24,6 +26,7 @@ class MainActivity : ComponentActivity() {
   private lateinit var imageSourceRepo: AndroidImageSourceRepository
   private lateinit var shareGateway: AndroidMessageShareGateway
   private var activeViewModel: ConverterViewModel? = null
+  private var pendingViewIntent: Intent? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
     installSplashScreen()
@@ -49,6 +52,14 @@ class MainActivity : ComponentActivity() {
           )
           activeViewModel = vm
 
+          LaunchedEffect(vm) {
+            val pending = pendingViewIntent
+            if (pending != null) {
+              pendingViewIntent = null
+              processIncomingIntent(pending, vm)
+            }
+          }
+
           ConverterScreen(
             viewModel = vm,
             onPrepareCameraCaptureTarget = {
@@ -70,16 +81,25 @@ class MainActivity : ComponentActivity() {
 
   private fun handleIncomingIntent(incomingIntent: Intent?) {
     if (incomingIntent == null) return
+    val vm = activeViewModel
+    if (vm == null) {
+      pendingViewIntent = incomingIntent
+      return
+    }
+    processIncomingIntent(incomingIntent, vm)
+  }
+
+  private fun processIncomingIntent(incomingIntent: Intent, vm: ConverterViewModel) {
     if (incomingIntent.action == Intent.ACTION_SEND && incomingIntent.type?.startsWith("image/") == true) {
       lifecycleScope.launch {
         val outcome = imageSourceRepo.decodeIncomingShare(incomingIntent)
-        activeViewModel?.onIncomingShareResult(outcome)
+        vm.onIncomingShareResult(outcome)
       }
     } else if (incomingIntent.action == Intent.ACTION_VIEW && incomingIntent.data != null) {
       val dataString = incomingIntent.data.toString()
       lifecycleScope.launch {
-        val outcome = com.laralbir.img2asciiim.data.source.DeepLinkImageCodec().decodeFromDeepLink(dataString)
-        activeViewModel?.onIncomingShareResult(outcome)
+        val outcome = DeepLinkImageCodec().decodeFromDeepLink(dataString)
+        vm.onIncomingShareResult(outcome)
       }
     }
   }

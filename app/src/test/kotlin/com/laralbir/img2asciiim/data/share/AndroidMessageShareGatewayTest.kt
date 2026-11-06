@@ -48,7 +48,7 @@ class AndroidMessageShareGatewayTest {
     val outcome = gateway.shareToPlatform("⠀⠀⣿⣿⠀⠀", ImPlatformPreset.TELEGRAM)
 
     assertEquals(
-      ShareOutcome.OpenedDirectApp(packageName = "org.telegram.messenger", copiedToClipboard = false),
+      ShareOutcome.OpenedDirectApp(packageName = "org.telegram.messenger", copiedToClipboard = true),
       outcome,
     )
     assertEquals(1, launchedIntents.size)
@@ -73,7 +73,7 @@ class AndroidMessageShareGatewayTest {
     val outcome = gateway.shareToPlatform("```@%#```", ImPlatformPreset.WHATSAPP)
 
     assertEquals(
-      ShareOutcome.OpenedDirectApp(packageName = "com.whatsapp.w4b", copiedToClipboard = false),
+      ShareOutcome.OpenedDirectApp(packageName = "com.whatsapp.w4b", copiedToClipboard = true),
       outcome,
     )
     assertEquals("com.whatsapp.w4b", launchedIntents.single().`package`)

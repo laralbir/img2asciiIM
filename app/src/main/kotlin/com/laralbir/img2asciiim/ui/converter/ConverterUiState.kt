@@ -25,8 +25,8 @@ enum class ImageSourceOrigin(val displayName: String) {
 data class ConverterUiState(
   val isLoadingImage: Boolean = false,
   val isConverting: Boolean = false,
-  val sourceOrigin: ImageSourceOrigin = ImageSourceOrigin.DEMO,
-  val sourceLabel: String = "Ventanilla a bordo (Demo)",
+  val sourceOrigin: ImageSourceOrigin? = null,
+  val sourceLabel: String = "Ninguna foto seleccionada",
   val sourceDimensionsLabel: String = "",
   val params: ConversionParams = ConversionParams(),
   val previewDarkBubble: Boolean = true,

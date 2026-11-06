@@ -1,11 +1,14 @@
 package com.laralbir.img2asciiim.data.source
 
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Build
+import android.util.Base64
 import com.laralbir.img2asciiim.domain.model.DomainResult
 import com.laralbir.img2asciiim.domain.model.ImageDecodeError
 import com.laralbir.img2asciiim.domain.model.ImPlatformPreset
 import com.laralbir.img2asciiim.domain.model.PixelGrid
+import java.io.ByteArrayOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -60,17 +63,17 @@ class DeepLinkImageCodecTest {
       preset = ImPlatformPreset.WHATSAPP,
     )
 
-    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#data="))
+    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#d="))
     assertFalse(deepLink.contains("\n"))
     assertFalse(deepLink.contains(" "))
 
-    // WhatsApp budget is 65,536 characters
+    // WhatsApp expanded HD budget is 60,000 characters
     assertTrue(
-      deepLink.length <= ImPlatformPreset.WHATSAPP.maxCharacters,
-      "WhatsApp link exceeded max character budget: ${deepLink.length} > ${ImPlatformPreset.WHATSAPP.maxCharacters}",
+      deepLink.length <= DeepLinkImageCodec.WHATSAPP_EXPANDED_BUDGET,
+      "WhatsApp link exceeded max character budget: ${deepLink.length} > ${DeepLinkImageCodec.WHATSAPP_EXPANDED_BUDGET}",
     )
-    // Payload should be rich/HD (~15KB - 40KB Base64)
-    assertTrue(deepLink.length > 5_000, "WhatsApp HD payload unexpectedly small: ${deepLink.length}")
+    // Payload should be rich/HD (> 3,000 Base64 characters)
+    assertTrue(deepLink.length > 3_000, "WhatsApp HD payload unexpectedly small: ${deepLink.length}")
 
     // Verify round-trip decoding
     val outcome = codec.decodeFromDeepLink(deepLink)
@@ -83,7 +86,7 @@ class DeepLinkImageCodecTest {
   }
 
   @Test
-  fun expandedModeTelegramGeneratesValidLinkAndStrictlyRespects4096CharBudget() {
+  fun expandedModeTelegramGeneratesValidLinkAndStrictlyRespects3900CharBudget() {
     val grid = createSampleGrid(width = 1200, height = 900)
 
     val deepLink = codec.encodeToDeepLink(
@@ -92,16 +95,16 @@ class DeepLinkImageCodecTest {
       preset = ImPlatformPreset.TELEGRAM,
     )
 
-    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#data="))
+    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#d="))
     assertFalse(deepLink.contains("\n"))
     assertFalse(deepLink.contains(" "))
 
-    // Telegram budget is strictly 4,096 characters
+    // Telegram budget is strictly 3,900 characters (leaving safety margin for 4,096 char limit)
     assertTrue(
-      deepLink.length <= ImPlatformPreset.TELEGRAM.maxCharacters,
-      "Telegram link exceeded max character budget: ${deepLink.length} > ${ImPlatformPreset.TELEGRAM.maxCharacters}",
+      deepLink.length <= DeepLinkImageCodec.TELEGRAM_BUDGET,
+      "Telegram link exceeded max character budget: ${deepLink.length} > ${DeepLinkImageCodec.TELEGRAM_BUDGET}",
     )
-    assertTrue(deepLink.length <= 4_096)
+    assertTrue(deepLink.length <= 3_900)
 
     // Verify round-trip decoding
     val outcome = codec.decodeFromDeepLink(deepLink)
@@ -130,10 +133,13 @@ class DeepLinkImageCodecTest {
       preset = ImPlatformPreset.TELEGRAM,
     )
 
+    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#d="))
     assertTrue(
-      deepLink.length <= ImPlatformPreset.TELEGRAM.maxCharacters,
-      "Telegram noisy image link exceeded budget: ${deepLink.length} > 4096",
+      deepLink.length <= DeepLinkImageCodec.TELEGRAM_BUDGET,
+      "Telegram noisy image link exceeded budget: ${deepLink.length} > ${DeepLinkImageCodec.TELEGRAM_BUDGET}",
     )
+    assertTrue(deepLink.length <= 3_900)
+
     val outcome = codec.decodeFromDeepLink(deepLink)
     assertTrue(outcome is DomainResult.Success)
     assertTrue(outcome.value.pixelGrid.width <= 200)
@@ -141,15 +147,21 @@ class DeepLinkImageCodecTest {
   }
 
   @Test
-  fun standardModeScalesTo320PxMaxDimension() {
+  fun standardModeScalesTo320PxMaxDimensionAndRespectsStandardBudget() {
     val grid = createSampleGrid(width = 800, height = 600)
 
     val deepLink = codec.encodeToDeepLink(
       pixelGrid = grid,
       mode = DeepLinkMode.STANDARD,
+      preset = ImPlatformPreset.WHATSAPP,
     )
 
-    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#data="))
+    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#d="))
+    assertTrue(
+      deepLink.length <= DeepLinkImageCodec.WHATSAPP_STANDARD_BUDGET,
+      "Standard mode link exceeded budget: ${deepLink.length} > ${DeepLinkImageCodec.WHATSAPP_STANDARD_BUDGET}",
+    )
+
     val outcome = codec.decodeFromDeepLink(deepLink)
     assertTrue(outcome is DomainResult.Success)
     val decoded = outcome.value
@@ -168,7 +180,7 @@ class DeepLinkImageCodecTest {
 
     val deepLink = codec.encodeToDeepLink(grid, maxDimension = 64, quality = 60)
 
-    assertTrue(deepLink.startsWith("https://laralbir.github.io/img2asciiIM/#data="))
+    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#d="))
     assertFalse(deepLink.contains("\n"))
     assertFalse(deepLink.contains(" "))
     // Check reasonable size (< 6 KB for a 64x48 thumbnail)
@@ -192,21 +204,110 @@ class DeepLinkImageCodecTest {
   }
 
   @Test
-  fun decodesQueryParameterFallback() {
-    val pixels = IntArray(16 * 16) { Color.RED }
-    val grid = PixelGrid(width = 16, height = 16, argbPixels = pixels)
-    val deepLink = codec.encodeToDeepLink(grid, maxDimension = 16, quality = 80)
-    // Test with ?data= instead of #data=
-    val queryLink = deepLink.replace("#data=", "?data=")
+  fun adaptiveResizingStrictlyRespectsExplicitMaxCharacterBudget() {
+    val grid = createSampleGrid(width = 1600, height = 1200)
+    val strictBudget = 2_500
 
-    val outcome = codec.decodeFromDeepLink(queryLink)
+    val deepLink = codec.encodeToDeepLink(
+      pixelGrid = grid,
+      mode = DeepLinkMode.EXPANDED_HD,
+      preset = ImPlatformPreset.WHATSAPP,
+      maxCharacterBudget = strictBudget,
+    )
+
+    assertTrue(deepLink.startsWith(DeepLinkImageCodec.DEEP_LINK_BASE + "#d="))
+    assertTrue(
+      deepLink.length <= strictBudget,
+      "Deep link length ${deepLink.length} exceeded strict maxCharacterBudget $strictBudget",
+    )
+
+    val outcome = codec.decodeFromDeepLink(deepLink)
     assertTrue(outcome is DomainResult.Success)
-    assertEquals(16, outcome.value.originalWidth)
+    val decoded = outcome.value
+    assertTrue(decoded.originalWidth > 0)
+    assertTrue(decoded.originalHeight > 0)
+    assertTrue(decoded.originalWidth <= 720)
+  }
+
+  @Test
+  fun decodesLegacyJpegImagesCorrectly() {
+    val width = 40
+    val height = 40
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    for (x in 0 until width) {
+      for (y in 0 until height) {
+        bitmap.setPixel(x, y, Color.rgb(x * 6, y * 6, 128))
+      }
+    }
+
+    val stream = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+    val jpegBytes = stream.toByteArray()
+    val base64Jpeg = Base64.encodeToString(
+      jpegBytes,
+      Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+    )
+
+    // Test legacy `#data=` format
+    val legacyDataUrl = "${DeepLinkImageCodec.DEEP_LINK_BASE}#data=$base64Jpeg"
+    val outcomeData = codec.decodeFromDeepLink(legacyDataUrl)
+    assertTrue(outcomeData is DomainResult.Success, "Failed to decode legacy #data= JPEG deep link")
+    assertEquals(width, outcomeData.value.originalWidth)
+    assertEquals(height, outcomeData.value.originalHeight)
+
+    // Test legacy `?data=` format
+    val legacyQueryDataUrl = "${DeepLinkImageCodec.DEEP_LINK_BASE}?data=$base64Jpeg"
+    val outcomeQuery = codec.decodeFromDeepLink(legacyQueryDataUrl)
+    assertTrue(outcomeQuery is DomainResult.Success, "Failed to decode legacy ?data= JPEG deep link")
+    assertEquals(width, outcomeQuery.value.originalWidth)
+  }
+
+  @Test
+  fun decodesAllSupportedPrefixFormats() {
+    val pixels = IntArray(20 * 20) { Color.GREEN }
+    val grid = PixelGrid(width = 20, height = 20, argbPixels = pixels)
+    val standardUrl = codec.encodeToDeepLink(grid, maxDimension = 20, quality = 80)
+    val payload = standardUrl.substringAfter("#d=")
+
+    val prefixes = listOf("#d=", "#data=", "?d=", "?data=")
+    for (prefix in prefixes) {
+      val testUrl = "${DeepLinkImageCodec.DEEP_LINK_BASE}$prefix$payload"
+      val result = codec.decodeFromDeepLink(testUrl)
+      assertTrue(result is DomainResult.Success, "Failed to decode prefix format '$prefix'")
+      assertEquals(20, result.value.originalWidth)
+      assertEquals(20, result.value.originalHeight)
+    }
+  }
+
+  @Test
+  fun decodesCustomUriSchemesWithQueryAndHashPayload() {
+    val pixels = IntArray(20 * 20) { Color.MAGENTA }
+    val grid = PixelGrid(width = 20, height = 20, argbPixels = pixels)
+    val standardUrl = codec.encodeToDeepLink(grid, maxDimension = 20, quality = 80)
+    val payload = standardUrl.substringAfter("#d=")
+
+    // img2asciiim://view?d=...
+    val uri1 = "img2asciiim://view?d=$payload"
+    val res1 = codec.decodeFromDeepLink(uri1)
+    assertTrue(res1 is DomainResult.Success, "Failed to decode img2asciiim://view?d=...")
+    assertEquals(20, res1.value.originalWidth)
+
+    // img2asciiim://view#d=...
+    val uri2 = "img2asciiim://view#d=$payload"
+    val res2 = codec.decodeFromDeepLink(uri2)
+    assertTrue(res2 is DomainResult.Success, "Failed to decode img2asciiim://view#d=...")
+    assertEquals(20, res2.value.originalWidth)
+
+    // img2ascii://view?d=...
+    val uri3 = "img2ascii://view?d=$payload"
+    val res3 = codec.decodeFromDeepLink(uri3)
+    assertTrue(res3 is DomainResult.Success, "Failed to decode img2ascii://view?d=...")
+    assertEquals(20, res3.value.originalWidth)
   }
 
   @Test
   fun rejectsCorruptedOrMissingDataPayloads() {
-    val invalidLink = "https://laralbir.github.io/img2asciiIM/#data=corrupted_not_a_valid_image"
+    val invalidLink = "https://laralbir.github.io/img2asciiIM/#d=corrupted_not_a_valid_image"
     val outcome = codec.decodeFromDeepLink(invalidLink)
     assertTrue(outcome is DomainResult.Failure)
     assertTrue(

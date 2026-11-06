@@ -516,46 +516,158 @@ Desde Android 11 (API 30), el filtrado de visibilidad de paquetes impide consult
 
 ### 4.5 Ingeniería del Codificador Autónomo de Deep Link (`DeepLinkImageCodec`, `RF-07`)
 
-Para superar el bloqueo estricto de subida de imágenes en planes satelitales y *Free In-Flight Messaging* de aerolíneas sin depender de servidores multimedia externos, `img2asciiIM` incorpora una arquitectura de **enlaces autónomos de alta definición (*Self-Contained Deep Links*)** donde la fotografía original viaja comprimida y codificada en Base64 URL-safe dentro del hash fragment de la URL (`#data=...`).
+Para superar el bloqueo estricto de subida de imágenes en planes satelitales y *Free In-Flight Messaging* de aerolíneas sin depender de servidores multimedia externos, `img2asciiIM` incorpora una arquitectura de **enlaces autónomos de alta definición (*Self-Contained Deep Links*)** donde la fotografía original viaja comprimida y codificada en Base64 URL-safe dentro del hash fragment de la URL (`#d=...`).
 
 #### 1. Formato de URI y Privacidad Absoluta por Hash Fragment (`#`)
-`https://laralbir.github.io/img2asciiIM/#data=<payload_base64_url_safe>`
+`https://laralbir.github.io/img2asciiIM/#d=<payload_base64_url_safe>`
 
 - **Aislamiento de Red (RFC 3986):** En el protocolo HTTP estándar, la porción de una URL situada tras el delimitador `#` (*fragment identifier*) **jamás se envía a los servidores web** en la cabecera `GET /...`. En consecuencia, la imagen fotográfica no transita por ningún backend ni servidor intermedio: viaja exclusivamente como texto plano en el mensaje de mensajería instantánea.
 - **Transmisión sobre Canales de Solo Texto:** Los cortafuegos de inspección profunda de paquetes (DPI) de aerolíneas y cruceros bloquean las CDNs de subida de imágenes (`mmg.whatsapp.net`, etc.), pero autorizan el tráfico de texto plano y URLs en los sockets de chat de WhatsApp y Telegram.
-- **Doble Vía de Consumo:**
-  - **Recepción Nativa en Android (`Intent.ACTION_VIEW`):** El `AndroidManifest.xml` registra un `<intent-filter android:autoVerify="true">` asociando el host `laralbir.github.io` y la ruta `/img2asciiIM`. Cuando el receptor toca el enlace, Android despacha el intent hacia `MainActivity`, donde `DeepLinkImageCodec.decodeFromDeepLink()` extrae el payload Base64 y reconstruye el `PixelGrid` original a color en memoria **100 % offline** sin consumir datos de red.
-  - **Visor Web Estático de Respaldo (`docs/index.html`):** Para destinatarios en dispositivos sin la app (iOS, iPadOS, macOS, Windows o Linux), GitHub Pages sirve un visor estático HTML5/Canvas sin backend. El JavaScript del cliente extrae `window.location.hash.substring(6)`, decodifica el Base64 y dibuja la fotografía directamente en un `<canvas>` en el navegador.
+- **Prefijo Corto Canónico `#d=` y Eliminación de Texto Superfluo:**
+  - El enlace utiliza el identificador abreviado `#d=` (en lugar del tradicional `#data=`), ahorrando 3 caracteres críticos en cada mensaje.
+  - Se eliminan por completo las cadenas decorativas superfluas (como `"📸 Ver foto en alta definición:"` o `"🔗 Ver foto..."`), destinando el **100 % del presupuesto de caracteres útil al payload de la imagen**.
+  - **Soporte Polimórfico de Lectura:** El decodificador acepta de forma transparente y tolerante 4 variantes de entrada: `#d=`, `#data=`, `?d=` y `?data=`.
 
-#### 2. Conmutación Modular y Reasignación Íntegra de Presupuesto
+#### 2. Migración al Códec WebP Lossy (Ahorro del 35 % al 50 %)
+Frente a la compresión JPEG clásica, `DeepLinkImageCodec` migra a **WebP Lossy** (`Bitmap.CompressFormat.WEBP_LOSSY` en Android 11+ / API 30+, con retrocompatibilidad a `Bitmap.CompressFormat.WEBP` en API 26–29):
+- **Eficiencia de compresión:** Para una calidad perceptual idéntica (PSNR y SSIM), WebP genera archivos entre un **35 % y un 50 % más pequeños en bytes** que JPEG, permitiendo resoluciones sensiblemente mayores sin sobrepasar los límites de mensajería.
+- **Decodificación polimórfica en cliente y web:**
+  - En la app Android, `BitmapFactory.decodeByteArray()` decodifica automáticamente tanto flujos WebP como JPEG sin requerir configuración especial.
+  - En el visor web estático (`docs/index.html`), el decodificador JavaScript inspecciona los bytes mágicos iniciales (`RIFF....WEBP` vs `0xFF 0xD8` de JPEG) y construye el `Blob` con el MIME adecuado (`image/webp` o `image/jpeg`).
 
-La interfaz expone dos conmutadores independientes que modifican reactivamente el mensaje generado:
-- `includeTextArt: Boolean` (Arte ASCII o Braille, por defecto `true`).
-- `attachDeepLink: Boolean` (Enlace de alta definición `#data=...`, por defecto `false`).
+#### 3. Redimensionamiento Dinámico Adaptativo y Presupuesto Anti-División
+
+Para garantizar que los mensajes jamás se dividan en múltiples burbujas en clientes de mensajería, `DeepLinkImageCodec` aplica un algoritmo iterativo de ajuste estricto al presupuesto de la plataforma destino:
 
 ```mermaid
 flowchart TD
-    CONFIG{"Configuración de Conmutadores en ConverterUiState"}
-    CONFIG -->|"includeTextArt = true\nattachDeepLink = false"| C1["Solo Arte de Texto\nPipelines tradicionales de caracteres\nPresupuesto completo dedicado a filas/columnas"]
-    CONFIG -->|"includeTextArt = true\nattachDeepLink = true"| C2["Modo Híbrido Dual\nArte de texto + Enlace compacto\nCompresión miniatura: max 320 px (calidad 60)\nPayload ~4-10 KB"]
-    CONFIG -->|"includeTextArt = false\nattachDeepLink = true"| C3["Modo Solo Enlace HD (Máxima Nitidez)\n100% del presupuesto de caracteres asignado al payload\nWhatsApp: 640-800 px (calidad 75) - payload ~35-50 KB\nTelegram: 200-240 px (calidad 55) - payload ~2.8-3.8 KB"]
+    START["Inicio encodeToDeepLink(pixelGrid, mode, preset, artLength)"] --> RES["Resolver perfil inicial\nWhatsApp: 720 px, Q=75\nTelegram: 200 px, Q=45\nModo Estándar/Dual: 320 px, Q=60"]
+    RES --> CALC_BUDGET{"Calcular presupuesto estricto"}
+    CALC_BUDGET -->|"Telegram + Modo Dual"| B1["Presupuesto = 3.900 - artLength - 1\n(Cota anti-división estricta)"]
+    CALC_BUDGET -->|"Telegram + Solo Enlace HD"| B2["Presupuesto = 3.900 caracteres"]
+    CALC_BUDGET -->|"WhatsApp"| B3["Presupuesto = 65.536 caracteres\n(Clipboard-First)"]
+    B1 --> ENC["Comprimir Bitmap a WebP Lossy\ny codificar a Base64 URL-safe (#d=...)"]
+    B2 --> ENC
+    B3 --> ENC
+    ENC --> CHECK{"¿URL.length <= presupuesto?"}
+    CHECK -- "SÍ" --> RETURN["Retornar URL generada"]
+    CHECK -- "NO (y Quality > 20)" --> RED_Q["Reducir calidad: currentQuality -= 5"]
+    RED_Q --> ENC
+    CHECK -- "NO (y Quality <= 20 y Dim > 80)" --> RED_DIM["Reducir dimensión: currentDim = floor(currentDim * 0.85)"]
+    RED_DIM --> ENC
+    CHECK -- "NO (límite físico alcanzado)" --> RETURN
 ```
 
-#### 3. Especificación Técnica de los Modos de Envío
+##### Fórmulas Matemáticas de Presupuesto:
+1. **Telegram — Cota Estricta de 3.900 caracteres (Garantía Anti-División):**
+   Telegram aplica un corte inflexible de **4.096 caracteres** por mensaje. Si un mensaje supera ese límite, la aplicación lo divide forzosamente en dos mensajes independientes, arruinando la experiencia. Para evitarlo con margen determinista de seguridad, el presupuesto máximo se fija en **3.900 caracteres**:
+   - En **Modo Solo Enlace HD** (`includeTextArt == false`): $\text{budget}_{\text{deeplink}} = 3.900$ caracteres.
+   - En **Modo Híbrido Dual** (`includeTextArt == true`):
+     $$\text{budget}_{\text{deeplink}} = 3.900 - \text{art.length} - 1$$
+     Donde $\text{art.length}$ es la longitud exacta de la cadena de arte (incluyendo envoltorios monoespaciados y saltos de línea) y el $-1$ reserva el salto de línea separador entre el arte y el enlace.
+2. **WhatsApp — Máxima Capacidad (hasta 65.536 chars) y Entrega Clipboard-First:**
+   WhatsApp tolera mensajes de hasta **65.536 caracteres**. Sin embargo, en el sistema operativo Android, la comunicación entre aplicaciones mediante `Intent.ACTION_SEND` utiliza el mecanismo de IPC Binder, el cual dispone de un búfer compartido para todas las transacciones concurrentes del proceso (típicamente 1 MB a nivel de proceso, pero con cuotas por transacción que pueden degradarse ante textos extensos en ciertas versiones de `com.whatsapp`).
+   Por esta razón, la app implementa la estrategia **Clipboard-First**:
+   - Copia automáticamente la totalidad del mensaje (hasta 65.536 chars) en `ClipboardManager` mediante `ClipData.newPlainText()`.
+   - Lanza el intent hacia WhatsApp con `Intent.EXTRA_TEXT`.
+   - Notifica al usuario en la interfaz: *"Mensaje copiado al portapapeles. Si WhatsApp recorta el texto, mantén presionado el campo de chat y selecciona Pegar"*.
+
+#### 4. Especificación Técnica Comparativa de Modos
 
 | Parámetro / Modo | Modo Dual (Arte + Enlace) | Modo Solo Enlace HD (WhatsApp) | Modo Solo Enlace HD (Telegram) | Modo Instagram Direct |
 | :--- | :--- | :--- | :--- | :--- |
 | **`includeTextArt`** | `true` | `false` | `false` | `true` |
 | **`attachDeepLink`** | `true` | `true` | `true` | `false` *(bloqueado)* |
-| **Resolución Máx.** | `320 px` de lado mayor | **`640–800 px`** de lado mayor | **`200–240 px`** de lado mayor | N/A (solo Braille) |
-| **Calidad JPEG** | `60` | **`75`** | **`50–60`** | N/A |
-| **Tamaño Base64** | `~4–10 KB` | **`~35–50 KB`** | **`~2.800–3.800 chars`** | N/A |
-| **Límite Canal IM** | `65.536` (WA) / `4.096` (TG) | **`65.536` chars** | **`4.096` chars** | **`1.000` chars** |
-| **Mensaje Generado** | `<arte>\n\n🔗 Ver foto en alta definición:\nhttps://...#data=...` | `📸 Ver foto en alta definición:\nhttps://...#data=...` | `📸 Ver foto en alta definición:\nhttps://...#data=...` | `<arte_braille>` |
+| **Resolución Máx.** | `320 px` (adaptable) | **`720–800 px`** | **`200–280 px`** (adaptable) | N/A (solo Braille) |
+| **Códec / Calidad** | WebP Lossy / `60` (ajuste a $\ge 20$) | WebP Lossy / **`75–80`** | WebP Lossy / **`45–65`** (ajuste a $\ge 20$) | N/A |
+| **Tamaño Base64** | `~3–6 KB` (adaptativo) | **`~20–35 KB`** | **`~2.5–3.8 KB`** ($\le 3.900$ chars) | N/A |
+| **Límite Canal IM** | `65.536` (WA) / `3.900` (TG) | **`65.536` chars** | **`3.900` chars** (estricto) | **`1.000` chars** |
+| **Formato Mensaje** | `<arte>\nhttps://...#d=...` | `https://...#d=...` | `https://...#d=...` | `<arte_braille>` |
+| **Garantía Anti-División**| Sí ($\text{art} + 1 + \text{url} \le 3.900$)| Sí (Clipboard-First si IPC recorta) | Sí ($\text{url} \le 3.900$) | Sí ($\text{arte} \le 1.000$) |
 
-> [!IMPORTANT]
-> **Invariante de Salvaguarda de Mensaje no Vacío (`CB-08`):**
-> La lógica en `ConverterViewModel` y la UI Compose garantizan que `includeTextArt` y `attachDeepLink` jamás puedan permanecer falsos de forma simultánea. Si el usuario intenta apagar el último conmutador encendido, el sistema reactiva el alternativo o ignora la desactivación, asegurando que el mensaje formateado nunca sea nulo ni vacío.
+#### 5. Arquitectura de App Links y Esquema Nativo (`img2asciiim://` + HTTPS + GitHub Pages)
+
+Para brindar una experiencia de usuario inmediata y fluida, `img2asciiIM` soporta una arquitectura dual de enlaces:
+
+```mermaid
+flowchart LR
+    LINK["Enlace recibido por el usuario"] --> TYPE{"Tipo de Enlace"}
+    TYPE -->|"https://laralbir.github.io/img2asciiIM/#d=..."| HTTPS["Universal App Link (HTTPS)"]
+    TYPE -->|"img2asciiim://view?d=..."| SCHEME["Esquema URI Personalizado"]
+    HTTPS --> VERIFY{"¿Verificado por Digital Asset Links?"}
+    VERIFY -- "SÍ" --> APP["Abre directamente img2asciiIM (MainActivity)\nDecodifica 100% OFFLINE"]
+    VERIFY -- "NO (o navegador externo)" --> WEB["Abre docs/index.html en navegador"]
+    WEB --> BANNER["Banner interactivo en visor web:\n'📱 Abrir en la app img2asciiIM'"]
+    BANNER --> SCHEME
+    SCHEME --> APP
+```
+
+##### 1. Registro en `AndroidManifest.xml`:
+La actividad principal `MainActivity` declara dos filtros de intent independientes:
+```xml
+<!-- 1. Universal App Links HTTPS con auto-verificación -->
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data
+        android:scheme="https"
+        android:host="laralbir.github.io"
+        android:pathPrefix="/img2asciiIM" />
+</intent-filter>
+
+<!-- 2. Esquema URI nativo exclusivo para invocación directa sin ambigüedad -->
+<intent-filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data
+        android:scheme="img2asciiim"
+        android:host="view" />
+</intent-filter>
+```
+
+##### 2. Declaración de Digital Asset Links (`docs/.well-known/assetlinks.json`):
+Para la verificación criptográfica automática de los App Links HTTPS en Android 6.0+ (evitando el diálogo del selector de aplicaciones del sistema), se aloja el archivo `docs/.well-known/assetlinks.json` asociando la aplicación al dominio oficial:
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.laralbir.img2asciiim",
+      "sha256_cert_fingerprints": [
+        "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C"
+      ]
+    }
+  }
+]
+```
+
+##### 3. Despliegue en GitHub Pages y Requisito Crítico de `.nojekyll`:
+> [!CAUTION]
+> **Requisito Obligatorio de `docs/.nojekyll` en GitHub Pages:**
+> Por defecto, el motor de construcción de GitHub Pages ejecuta **Jekyll**. En la convención de Jekyll, **cualquier directorio o archivo cuyo nombre comience por un punto (`.`) es ignorado silenciosamente** durante el despliegue del sitio estático.
+> En consecuencia, la carpeta `docs/.well-known/` sería omitida y las peticiones a `/.well-known/assetlinks.json` devolverían un error HTTP 404, invalidando la verificación automática de Android.
+> Para corregirlo, el proyecto incluye un archivo vacío `docs/.nojekyll` en la raíz del árbol documental. Esto desactiva el procesamiento de Jekyll y garantiza que `.well-known/assetlinks.json` sea servido íntegramente con cabecera `Content-Type: application/json` y código HTTP 200.
+
+##### 4. Integración en el Visor Web (`docs/index.html`):
+Cuando un usuario en un dispositivo Android abre el enlace web en un navegador (por ejemplo, al recibirlo en una app que fuerza la navegación interna), el JavaScript de `docs/index.html`:
+1. Extrae el payload Base64 de la URL.
+2. Construye el enlace al esquema nativo: `img2asciiim://view?d=${encodeURIComponent(payload)}`.
+3. Muestra un banner superior interactivo con el botón **«📱 Abrir en la app img2asciiIM»**.
+4. Al pulsarlo, el sistema transfiere el control de inmediato a `MainActivity`, renderizando la fotografía a color 100% offline sin consumir datos móviles.
+
+#### 6. Arquitectura del Estado Inicial Limpio (`Empty State`)
+
+En consonancia con las buenas prácticas de diseño de Android (`DD-09`), `img2asciiIM` prescinde de la carga obligatoria de imágenes sintéticas o de muestra en el arranque en frío:
+- **`ConverterViewModel` Reactivo:** Se inicializa en un estado limpio `ConverterUiState(decodedImage = null, formattedMessage = "")`.
+- **Experiencia de Usuario en la UI:** Si no hay imagen cargada, Compose renderiza un contenedor de bienvenida interactivo (*Empty State*) con:
+  - Ilustración minimalista corporativa e indicación clara de la propuesta de valor (conversión 100% offline para Wi-Fi de avión y mensajería).
+  - Tres accesos directos de tamaño táctil mínimo de 48dp: **«Galería»** (`PickVisualMedia`), **«Archivos / Drive»** (SAF `OpenDocument`) y **«Cámara»** (`TakePicture`).
+- **Rendimiento de Arranque:** Al no decodificar mapas de bits artificiales en el arranque en frío, el uso de heap inicial se reduce a menos de 12 MB y el tiempo de montaje del primer fotograma desciende por debajo de 50 ms.
+
+---
 
 ### 4.6 Sistema de Comprobación y Actualización In-App (`GitHubUpdateChecker`, `RF-08`)
 

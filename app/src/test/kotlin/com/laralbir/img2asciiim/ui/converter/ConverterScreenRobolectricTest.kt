@@ -2,6 +2,8 @@ package com.laralbir.img2asciiim.ui.converter
 
 import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -95,7 +97,7 @@ class ConverterScreenRobolectricTest {
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_GALLERY).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_DOCUMENTS).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CAMERA).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_DEMO).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_DEMO).assertDoesNotExist()
 
     // Platform Presets
     composeTestRule.onNodeWithText("WhatsApp").assertIsDisplayed()
@@ -241,5 +243,78 @@ class ConverterScreenRobolectricTest {
     assertFalse(viewModel.uiState.value.includeAsciiArt)
     assertTrue(viewModel.uiState.value.attachDeepLink)
     composeTestRule.onNodeWithTag(ConverterTestTags.HD_MODE_EXPANDED_CARD).assertExists()
+  }
+
+  @Test
+  fun converterScreen_emptyState_whenNoConversionResult_showsPromptAndDisablesButtons() {
+    val repo = FakeImageSourceRepo()
+    val gateway = FakeShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repo,
+      messageShareGateway = gateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = false,
+    )
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.setContent {
+      Img2asciiIMTheme {
+        ConverterScreen(
+          viewModel = viewModel,
+          onPrepareCameraCaptureTarget = { null },
+        )
+      }
+    }
+
+    // Empty state card prompt is displayed
+    composeTestRule.onNodeWithText("Selecciona una foto arriba para convertirla en arte de texto").assertExists()
+
+    // Action buttons are disabled
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_COPY).assertIsNotEnabled()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_SHARE).assertIsNotEnabled()
+
+    // Load demo sample -> art generated and buttons become enabled
+    viewModel.onLoadDemoSample()
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.onNodeWithText("Selecciona una foto arriba para convertirla en arte de texto").assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ConverterTestTags.ASCII_TEXT).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_COPY).assertIsEnabled()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_SHARE).assertIsEnabled()
+  }
+
+  @Test
+  fun converterScreen_cleanPreviewFormat_withoutVerFotoPrefixes() {
+    val repo = FakeImageSourceRepo()
+    val gateway = FakeShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repo,
+      messageShareGateway = gateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.setContent {
+      Img2asciiIMTheme {
+        ConverterScreen(
+          viewModel = viewModel,
+          onPrepareCameraCaptureTarget = { null },
+        )
+      }
+    }
+
+    // Attach deep link
+    composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_ATTACH_DEEP_LINK).performScrollTo().performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    // Disable ASCII preview
+    composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_INCLUDE_ASCII).performScrollTo().performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    // Accessibility content description reflects solo-link mode
+    composeTestRule.onNodeWithTag(ConverterTestTags.ASCII_TEXT).performScrollTo().assertExists()
   }
 }

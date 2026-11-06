@@ -156,19 +156,19 @@
 
 ---
 
-## Slice 10 — Enlace Autónomo de Alta Resolución (`#data=...`), Deep Linking y Visor Web Estático (`RF-07`)
+## Slice 10 — Enlace Autónomo de Alta Resolución WebP (`#d=...`), Redimensionamiento Adaptativo y App Links (`RF-07`)
 
-> **Cobertura:** `RF-07` (`CA-07.1` Compresión cliente + Base64 URL-safe, `CA-07.2` Ingesta Deep Link `ACTION_VIEW`, `CA-07.3` Visor web estático `docs/index.html`).
+> **Cobertura:** `RF-07` (`CA-07.1` Supresión de texto superfluo, `CA-07.2` WebP Lossy + Base64 `#d=...`, `CA-07.3` Redimensionamiento adaptativo anti-división Telegram $\le 3.900$ chars y WhatsApp Clipboard-First, `CA-07.4` App Links y esquema `img2asciiim://`, `CA-07.5` Visor web estático `docs/index.html` con banner app).
 
-- [ ] **Tarea 10.1 — Codificador y Decodificador Autónomo de Deep Link (`DeepLinkImageCodec`)**
-  - **`[RED]`:** Crear `DeepLinkImageCodecTest.kt` verificando: (1) comprime un `PixelGrid` a un payload Base64 URL-safe compacto (`<= 12 KB`); (2) decodifica una URL `https://laralbir.github.io/img2asciiIM/#data=...` o `?data=...` reconstruyendo el `PixelGrid` idéntico al original en memoria; (3) maneja payloads corruptos devolviendo error tipado sin lanzar excepciones. Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo (`RED`).
-  - **`[GREEN]`:** Implementar `DeepLinkImageCodec.kt` en `data/source/`.
-  - **`[REFACTOR]`:** Optimizar compresión JPEG/WebP a calidad 60 con dimensiones escaladas a max 320 px para que el payload quepa holgadamente en el límite de WhatsApp.
+- [x] **Tarea 10.1 — Codificador y Decodificador Autónomo de Deep Link (`DeepLinkImageCodec`)**
+  - **`[RED]`:** Crear/actualizar `DeepLinkImageCodecTest.kt` verificando: (1) comprime un `PixelGrid` a WebP Lossy con prefijo canónico `#d=` (ahorro 35-50% frente a JPEG); (2) aplica bucle adaptativo para respetar cota estricta de 3.900 chars en Telegram y $3.900 - \text{art.length} - 1$ en modo híbrido dual; (3) decodifica tolerante `#d=`, `#data=`, `?d=` y `?data=` soportando tanto flujos WebP como JPEG; (4) maneja payloads corruptos devolviendo error tipado sin crashear.
+  - **`[GREEN]`:** Implementar lógica de redimensionamiento dinámico y códec WebP Lossy en `DeepLinkImageCodec.kt`.
+  - **`[REFACTOR]`:** Validar rendimiento de compresión y confirmar que el 100% de los tests unitarios pasan en verde.
 
-- [ ] **Tarea 10.2 — Conexión en `MainActivity`, Conmutador UI y Visor Web Estático (`docs/index.html`)**
-  - **`[RED]`:** Actualizar `ConverterViewModelTest` y `ConverterScreenRobolectricTest` comprobando que: (1) `ConverterUiState.includeDeepLink` conmuta la adición del enlace `\n\n🔗 Ver foto en alta resolución:\nhttps://laralbir.github.io/img2asciiIM/#data=...` al final del mensaje formateado; (2) `AndroidManifest.xml` registra `<intent-filter>` con `ACTION_VIEW` para `https://laralbir.github.io/img2asciiIM/`; (3) existe `docs/index.html` con decodificación de hash en canvas. Ejecutar tests y confirmar fallo.
-  - **`[GREEN]`:** Añadir conmutador en `ConverterScreen`, registrar intent-filter en manifest, procesar intent `ACTION_VIEW` en `MainActivity.kt` y crear `docs/index.html`.
-  - **`[REFACTOR]`:** Desplegar en Pixel 10 Pro XL (`make deploy-usb`), validar apertura de enlace con adb (`am start -W -a android.intent.action.VIEW -d "https://laralbir.github.io/img2asciiIM/#data=..."`) y verificar que todos los tests pasan en verde.
+- [x] **Tarea 10.2 — Conexión en `MainActivity`, Conmutadores UI, App Links y Visor Web Estático (`docs/index.html`)**
+  - **`[RED]`:** Actualizar `ConverterViewModelTest` y `ConverterScreenRobolectricTest` comprobando que: (1) el mensaje generado suprime textos superfluos compartiendo solo URL o `<arte>\n<url>`; (2) `AndroidManifest.xml` registra filtros para `https://laralbir.github.io/img2asciiIM` y `img2asciiim://view`; (3) existe `docs/index.html` con banner inteligente para abrir en la app nativa y `docs/.well-known/assetlinks.json` respaldado por `docs/.nojekyll`.
+  - **`[GREEN]`:** Integrar conmutadores en Compose, registrar filtros en manifest, implementar soporte en `MainActivity.kt` y actualizar `docs/index.html`.
+  - **`[REFACTOR]`:** Verificar en hardware y emulador la apertura directa de `img2asciiim://view?d=...`.
 
 ---
 

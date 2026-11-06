@@ -51,10 +51,10 @@ class DomainModelsTest {
     assertEquals("com.whatsapp", ImPlatformPreset.WHATSAPP.canonicalPackage)
     assertEquals(listOf("com.whatsapp.w4b"), ImPlatformPreset.WHATSAPP.fallbackPackages)
     assertEquals(CharsetMode.BRAILLE_UNICODE, ImPlatformPreset.WHATSAPP.defaultCharset)
-    assertEquals(30, ImPlatformPreset.WHATSAPP.defaultWidthColumns)
+    assertEquals(28, ImPlatformPreset.WHATSAPP.defaultWidthColumns)
     assertEquals(65_536, ImPlatformPreset.WHATSAPP.maxCharacters)
     assertNull(ImPlatformPreset.WHATSAPP.maxUtf8Bytes)
-    assertFalse(ImPlatformPreset.WHATSAPP.usesClipboardFirst)
+    assertTrue(ImPlatformPreset.WHATSAPP.usesClipboardFirst)
 
     assertEquals("Telegram", ImPlatformPreset.TELEGRAM.displayName)
     assertEquals("org.telegram.messenger", ImPlatformPreset.TELEGRAM.canonicalPackage)
@@ -63,10 +63,10 @@ class DomainModelsTest {
       ImPlatformPreset.TELEGRAM.fallbackPackages,
     )
     assertEquals(CharsetMode.BRAILLE_UNICODE, ImPlatformPreset.TELEGRAM.defaultCharset)
-    assertEquals(32, ImPlatformPreset.TELEGRAM.defaultWidthColumns)
-    assertEquals(4_096, ImPlatformPreset.TELEGRAM.maxCharacters)
+    assertEquals(28, ImPlatformPreset.TELEGRAM.defaultWidthColumns)
+    assertEquals(3_900, ImPlatformPreset.TELEGRAM.maxCharacters)
     assertNull(ImPlatformPreset.TELEGRAM.maxUtf8Bytes)
-    assertFalse(ImPlatformPreset.TELEGRAM.usesClipboardFirst)
+    assertTrue(ImPlatformPreset.TELEGRAM.usesClipboardFirst)
 
     assertEquals("Instagram DM", ImPlatformPreset.INSTAGRAM_DIRECT.displayName)
     assertEquals("com.instagram.android", ImPlatformPreset.INSTAGRAM_DIRECT.canonicalPackage)

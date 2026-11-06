@@ -207,17 +207,27 @@
   </header>
 
   <main>
+    <!-- Banner superior destacado para abrir directamente en la app -->
+    <div id="app-banner" class="card" style="display: none; width: 100%; background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(0, 229, 255, 0.15)); border: 1.5px solid var(--primary); text-align: center; padding: 1.25rem;">
+      <p style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.75rem; color: var(--text);">
+        ¿Tienes la app instalada en tu móvil?
+      </p>
+      <a id="btn-open-app-banner" href="#" class="btn btn-primary" style="font-size: 1.05rem; padding: 0.85rem 1.5rem; width: 100%; max-width: 420px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);">
+        📱 Abrir en la app img2asciiIM
+      </a>
+    </div>
+
     <div id="viewer-section" class="card viewer-container" style="display: none;">
       <div class="image-wrapper">
         <img id="decoded-image" alt="Fotografía compartida desde img2asciiIM" />
       </div>
       <p id="image-info" class="status-msg">Cargando fotografía original desde el enlace...</p>
       <div class="actions-row">
-        <a id="btn-save" class="btn btn-primary" download="foto_compartida.jpg">
-          💾 Guardar Foto
+        <a id="btn-open-app-action" href="#" class="btn btn-primary">
+          📱 Abrir en la app img2asciiIM
         </a>
-        <a href="https://github.com/laralbir/img2asciiIM/releases/latest" class="btn btn-outline">
-          ⚡ Abrir en App img2asciiIM
+        <a id="btn-save" class="btn btn-outline" download="foto_compartida.webp">
+          💾 Guardar Foto
         </a>
       </div>
     </div>
@@ -246,11 +256,20 @@
     (function () {
       function getPayload() {
         const hash = window.location.hash;
-        if (hash && hash.includes('data=')) {
-          const idx = hash.indexOf('data=');
-          return hash.substring(idx + 5).trim();
+        if (hash) {
+          if (hash.includes('d=')) {
+            const idx = hash.indexOf('d=');
+            return hash.substring(idx + 2).trim();
+          }
+          if (hash.includes('data=')) {
+            const idx = hash.indexOf('data=');
+            return hash.substring(idx + 5).trim();
+          }
         }
         const params = new URLSearchParams(window.location.search);
+        if (params.has('d')) {
+          return params.get('d').trim();
+        }
         if (params.has('data')) {
           return params.get('data').trim();
         }
@@ -268,10 +287,17 @@
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
-        return new Blob([byteArray], { type: 'image/jpeg' });
+        let mime = 'image/webp';
+        if (byteArray.length > 2 && byteArray[0] === 0xFF && byteArray[1] === 0xD8) {
+          mime = 'image/jpeg';
+        }
+        return new Blob([byteArray], { type: mime });
       }
 
       const payload = getPayload();
+      const appBanner = document.getElementById('app-banner');
+      const btnOpenAppBanner = document.getElementById('btn-open-app-banner');
+      const btnOpenAppAction = document.getElementById('btn-open-app-action');
       const viewerSection = document.getElementById('viewer-section');
       const landingSection = document.getElementById('landing-section');
       const decodedImg = document.getElementById('decoded-image');
@@ -279,6 +305,10 @@
       const btnSave = document.getElementById('btn-save');
 
       if (payload) {
+        const appUri = `img2asciiim://view?d=${encodeURIComponent(payload)}`;
+        if (btnOpenAppBanner) btnOpenAppBanner.href = appUri;
+        if (btnOpenAppAction) btnOpenAppAction.href = appUri;
+
         try {
           const blob = urlSafeBase64ToBlob(payload);
           const objectUrl = URL.createObjectURL(blob);
@@ -286,20 +316,24 @@
           btnSave.href = objectUrl;
 
           decodedImg.onload = function () {
+            if (appBanner) appBanner.style.display = 'block';
             viewerSection.style.display = 'flex';
             landingSection.style.display = 'none';
             imageInfo.textContent = `Fotografía original (${decodedImg.naturalWidth} × ${decodedImg.naturalHeight} px) decodificada 100% en tu navegador.`;
           };
           decodedImg.onerror = function () {
+            if (appBanner) appBanner.style.display = 'none';
             viewerSection.style.display = 'none';
             landingSection.style.display = 'flex';
           };
         } catch (e) {
           console.error('Error decoding image payload:', e);
+          if (appBanner) appBanner.style.display = 'none';
           viewerSection.style.display = 'none';
           landingSection.style.display = 'flex';
         }
       } else {
+        if (appBanner) appBanner.style.display = 'none';
         viewerSection.style.display = 'none';
         landingSection.style.display = 'flex';
       }
