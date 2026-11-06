@@ -47,12 +47,12 @@
   - **`[GREEN]`:** Implementar `AsciiClassicRenderer.kt` y `UnicodeBlockRenderer.kt`.
   - **`[REFACTOR]`:** Extraer tabla de cuantización compartida usando `StringBuilder` con capacidad exacta preasignada `rows * (cols + 1)`.
 
-- [ ] **Tarea 2.2 — `BrailleUnicodeRenderer` (`U+2800`..`U+28FF` ISO/TR 11548-1)**
+- [x] **Tarea 2.2 — `BrailleUnicodeRenderer` (`U+2800`..`U+28FF` ISO/TR 11548-1)**
   - **`[RED]`:** Crear `BrailleUnicodeRendererTest.kt` validando: (1) cada uno de los 8 puntos individuales `(dx, dy)` contra su máscara exacta (`0x01`, `0x02`, `0x04`, `0x08`, `0x10`, `0x20`, `0x40`, `0x80`); (2) celda vacía produce `U+2800` (`'⠀'`) y **nunca** espacio ASCII `' '` (`U+0020`); (3) celda llena produce `U+28FF` (`'⣿'`) y diagonal `(0,0)+(1,3)` produce `U+2881` (`CA-02.1`); (4) `String.trim()` no recorta `U+2800` al principio ni al final (`CB-05`). Ejecutar tests y confirmar fallo.
   - **`[GREEN]`:** Implementar `BrailleUnicodeRenderer.kt` superando todos los vectores de prueba.
   - **`[REFACTOR]`:** Optimizar el empaquetado de bits de subceldas `2×4` sin asignaciones de colecciones por celda.
 
-- [ ] **Tarea 2.3 — `DitheringEngine` (Floyd-Steinberg y Atkinson)**
+- [x] **Tarea 2.3 — `DitheringEngine` (Floyd-Steinberg y Atkinson)**
   - **`[RED]`:** Crear `DitheringEngineTest.kt` probando que una rejilla gris uniforme al `50%` (`0.5f`) procesada con `FLOYD_STEINBERG` y `ATKINSON` produce una densidad media de puntos encendidos entre `35%` y `65%` (frente al `0%` o `100%` de un umbral rígido desplazado) y que no desborda índices en los bordes izquierdo, derecho ni inferior (`CA-02.4`). Ejecutar tests y confirmar fallo.
   - **`[GREEN]`:** Implementar difusión de error `Floyd-Steinberg` (ventana 2 filas) y `Atkinson` (ventana 3 filas) en `DitheringEngine.kt`.
   - **`[REFACTOR]`:** Usar buffers circulares de filas (`FloatArray`) reutilizables y verificar tiempo total de `domain/` `< 50 ms`.
@@ -63,12 +63,12 @@
 
 > **Cobertura:** `RF-03`, `CA-03.1` (WhatsApp `65.536`), `CA-03.2` (Telegram `4.096`), `CA-03.3` (Instagram DM `1.000` sin ```` ``` ````), Caso de uso integrado `ConvertImageToImArtUseCase`.
 
-- [ ] **Tarea 3.1 — `ImPlatformPreset` e `ImMessageFormatter`**
+- [x] **Tarea 3.1 — `ImPlatformPreset` e `ImMessageFormatter`**
   - **`[RED]`:** Crear `ImPresetAndFormatterTest.kt` verificando que: (1) **WhatsApp** y **Telegram** envuelven la salida con ```` ```\n<arte>\n``` ```` (exactamente `+8` caracteres); (2) **Instagram Direct** omite todo backtick ```` ``` ```` y establece `BRAILLE_UNICODE` como modo predeterminado (`CA-03.1`, `CA-03.3`). Ejecutar tests y confirmar fallo.
   - **`[GREEN]`:** Implementar `ImPlatformPreset.kt` e `ImMessageFormatter.kt`.
   - **`[REFACTOR]`:** Centralizar metadatos de paquete Android objetivo, anchos recomendados y banderas de soporte monoespaciado en el modelo de dominio.
 
-- [ ] **Tarea 3.2 — `CharacterBudgetEnforcer` y `ConvertImageToImArtUseCase`**
+- [x] **Tarea 3.2 — `CharacterBudgetEnforcer` y `ConvertImageToImArtUseCase`**
   - **`[RED]`:** Crear `CharacterBudgetEnforcerTest.kt` y `ConvertImageToImArtUseCaseTest.kt` comprobando con imágenes panorámicas, cuadradas y capturas ultra-verticales (`9:21`) que: (1) bajo **Instagram Direct** `formattedMessage.length <= 1_000` siempre (`CA-03.3`); (2) bajo **Telegram** `formattedMessage.length <= 4_096` incluyendo los 8 caracteres del bloque ```` ``` ```` (`CA-03.2`); (3) bajo **WhatsApp** `formattedMessage.length <= 65_536` (`CA-03.1`); (4) cuando hay reducción automática se activa `wasAutoScaled = true`. Ejecutar tests y confirmar fallo.
   - **`[GREEN]`:** Implementar búsqueda binaria de columnas máximas en `CharacterBudgetEnforcer.kt` y orquestar el pipeline completo en `ConvertImageToImArtUseCase.kt`.
   - **`[REFACTOR]`:** Auditar con un test de arquitectura estática que `domain/` contiene **cero** referencias a `android.*` o `androidx.*` y que toda la suite `Slice 1..3` corre en `< 100 ms` (`RNF-06`).
@@ -79,12 +79,12 @@
 
 > **Cobertura:** `RF-01` (`CA-01.1..01.4`), `RNF-02` (`< 20 MB` RAM), `RNF-03` (Cero permisos `INTERNET`/almacenamiento), `CB-02` (Google Drive offline), `CB-04` (imagen corrupta).
 
-- [ ] **Tarea 4.1 — `SampleSizeCalculator` y Decodificación Submuestreada Segura**
+- [x] **Tarea 4.1 — `SampleSizeCalculator` y Decodificación Submuestreada Segura**
   - **`[RED]`:** Crear `SampleSizeCalculatorTest.kt` y `AndroidImageSourceDecoderTest.kt` (Robolectric) verificando que: (1) para una cabecera de `8000 × 6000` (`48 MP`) con objetivo `maxSidePx = 640`, el factor de submuestreo reduce el `Bitmap` alojado a `<= 1280 px` sin cargar la imagen completa (`RNF-02`); (2) un stream de 0 bytes o basura devuelve `Result.failure(DomainError.InvalidOrCorruptedImage)` (`CB-04`); (3) un `InputStream` de proveedor SAF/Google Drive que lanza `IOException` devuelve `Result.failure(DomainError.CloudFileOfflineUnavailable)` (`CB-02`). Ejecutar tests y confirmar fallo.
   - **`[GREEN]`:** Implementar `SampleSizeCalculator.kt` y `AndroidImageSourceDecoder.kt`.
   - **`[REFACTOR]`:** Garantizar cierre determinista de todos los `InputStream` con `.use {}` y liberación inmediata de `Bitmap` intermedios.
 
-- [ ] **Tarea 4.2 — `ExifOrientationNormalizer` y `CameraCaptureFileStore` (`FileProvider`)**
+- [x] **Tarea 4.2 — `ExifOrientationNormalizer` y `CameraCaptureFileStore` (`FileProvider`)**
   - **`[RED]`:** Crear `ExifOrientationNormalizerTest.kt` y `CameraCaptureFileStoreTest.kt` (Robolectric) verificando: (1) una imagen asimétrica con etiquetas EXIF `ROTATE_90`, `ROTATE_180`, `ROTATE_270` y `FLIP_HORIZONTAL` queda orientada correctamente en el `PixelGrid` resultante (`CA-02.3`); (2) `CameraCaptureFileStore` genera URIs válidas de `FileProvider` bajo `cacheDir/camera_captures/` y elimina temporales obsoletos (`CA-01.3`); (3) `ManifestSecurityTest` comprueba que `AndroidManifest.xml` **no** contiene `INTERNET`, `READ_MEDIA_IMAGES` ni `READ_EXTERNAL_STORAGE` (`RNF-03`). Ejecutar tests y confirmar fallo.
   - **`[GREEN]`:** Implementar `ExifOrientationNormalizer.kt`, `CameraCaptureFileStore.kt` y la configuración XML de `file_paths.xml` + `AndroidManifest.xml`.
   - **`[REFACTOR]`:** Unificar transformaciones matriciales EXIF para no duplicar copias de `Bitmap` cuando la orientación ya es `ORIENTATION_NORMAL`.
@@ -95,7 +95,7 @@
 
 > **Cobertura:** `CA-01.5` (cancelación inocua), `CA-02.5` (reactividad offline), `CA-03.3` (aviso ASCII en Instagram), `CB-06` (persistencia en rotación).
 
-- [ ] **Tarea 5.1 — Orquestación de Carga, Presets IM y Controles en Tiempo Real**
+- [x] **Tarea 5.1 — Orquestación de Carga, Presets IM y Controles en Tiempo Real**
   - **`[RED]`:** Crear `ConverterViewModelTest.kt` usando `StandardTestDispatcher` y **Turbine** (`uiState.test { ... }`) verificando: (1) carga inicial y recepción de URI desde `ACTION_SEND` (`CA-01.4`); (2) cancelación de selector (`uri = null`) preserva intacto el arte previo (`CA-01.5`); (3) cambiar a preset `INSTAGRAM_DM` selecciona `BRAILLE_UNICODE`, elimina backticks y garantiza `<= 1.000` chars (`CA-03.3`); (4) ráfagas de cambios en sliders de ancho/contraste cancelan cálculos obsoletos (`collectLatest`) emitiendo el último resultado consistente; (5) errores de archivo cloud offline actualizan el estado de aviso sin borrar el trabajo anterior (`CB-02`). Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo.
   - **`[GREEN]`:** Implementar `ConverterUiState.kt`, `ConverterUiEvent.kt`, `ConverterUiEffect.kt` y `ConverterViewModel.kt`.
   - **`[REFACTOR]`:** Separar el `PixelGrid` cacheado en memoria privada del `ViewModel` respecto al `ConverterUiState` renderizado para evitar comparaciones pesadas de arrays en recomposiciones de Compose.
@@ -106,12 +106,12 @@
 
 > **Cobertura:** `RF-04` (`CA-04.1` Portapapeles, `CA-04.2` Envío directo, `CA-04.3` Fallback Share Sheet), `RNF-05` (Accesibilidad `contentDescription` y semántica agrupada).
 
-- [ ] **Tarea 6.1 — `ImShareIntentFactory` y `SystemClipboardAdapter`**
+- [x] **Tarea 6.1 — `ImShareIntentFactory` y `SystemClipboardAdapter`**
   - **`[RED]`:** Crear `ImShareIntentFactoryTest.kt` (Robolectric `ShadowPackageManager`) verificando: (1) cuando `org.telegram.messenger` está instalado, el `Intent` devuelto es `ACTION_SEND` (`text/plain`) con `package = "org.telegram.messenger"` (`CA-04.2`); (2) cuando `com.instagram.android` **no** está instalado, devuelve un `Intent` `ACTION_CHOOSER` seguro sin lanzar excepción (`CA-04.3`); (3) `<queries>` en `AndroidManifest.xml` declara los paquetes objetivo para Android 11+; (4) `SystemClipboardAdapter` deposita exactamente `formattedMessage` en `ClipboardManager` (`CA-04.1`). Ejecutar tests y confirmar fallo.
   - **`[GREEN]`:** Implementar `ImShareIntentFactory.kt` y `SystemClipboardAdapter.kt`.
   - **`[REFACTOR]`:** Extraer resolución de paquetes alternativos (ej. WhatsApp Business según `DD-04`) en una tabla declarativa limpia.
 
-- [ ] **Tarea 6.2 — `ConverterScreen`, `ChatBubblePreviewCard` y Controles Compose Material 3**
+- [x] **Tarea 6.2 — `ConverterScreen`, `ChatBubblePreviewCard` y Controles Compose Material 3**
   - **`[RED]`:** Crear `ConverterScreenTest.kt` (Robolectric + `createComposeRule()`) validando: (1) presencia y disparo de botones **"Galería"**, **"Archivos / Drive"** y **"Cámara"**; (2) renderizado de la burbuja de vista previa con contador `N / Máx` caracteres y conmutador de fondo claro/oscuro; (3) aviso visible al forzar `ASCII_CLASSIC` en perfil **Instagram Direct** (`CA-03.3`); (4) botones **"Copiar"** y **"Enviar a ..."** operativos; (5) todos los controles interactivos poseen `contentDescription` no vacío y la burbuja expone semántica resumida accesible para TalkBack (`RNF-05`). Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo.
   - **`[GREEN]`:** Implementar `ConverterScreen.kt`, los subcomponentes en `ui/converter/components/` y la conexión Edge-to-Edge + recepción `ACTION_SEND` en `MainActivity.kt`.
   - **`[REFACTOR]`:** Añadir anotaciones `@Preview` (claro/oscuro, teléfono compacto, WhatsApp vs Instagram DM), estabilizar lambdas de Compose y ejecutar `./gradlew lintDebug` con **0 errores**.
@@ -122,10 +122,10 @@
 
 > **Cobertura:** `RNF-01` (`< 150 ms`), `RNF-02` (`< 20 MB` RAM con foto 48 MP), `RNF-04` (Modo Avión / Offline total), `CA-05.2` (Arranque E2E instantáneo), Renderizado real de fuentes Android.
 
-- [ ] **Tarea 7.1 — Suite Instrumentada `EndToEndConversionAndroidTest`**
-  - **`[RED]`:** Crear `app/src/androidTest/java/com/laralbir/img2asciiim/EndToEndConversionAndroidTest.kt` automatizando en dispositivo real/AVD: (1) arranque en frío de `MainActivity` verificando transición directa `SplashScreen` → `ConverterScreen` sin `SplashActivity` intermedia ni bloqueos (`CA-05.2`); (2) generación en caché de prueba de una imagen sintética de `8000 × 6000` (`48 MP`) con rotación EXIF `90°`; (3) inyección de la imagen en la app, verificando que el incremento de heap durante la decodificación y conversión es `< 20 MB` (`RNF-02`) y que el tiempo del motor es `< 150 ms` (`RNF-01`); (4) cambio entre perfiles WhatsApp, Telegram e Instagram Direct comprobando longitud exacta y copia real al `ClipboardManager` del dispositivo; (5) verificación visual/métrica de que una fila de `U+2800` tiene ancho mayor que cero en el componente `Text` con fuente proporcional del sistema.
-  - **`[GREEN]`:** Ejecutar `./gradlew connectedDebugAndroidTest` sobre dispositivo enlazado por **USB o Wi-Fi ADB** y ajustar cualquier detalle de integración con ART/Skia hasta pasar al 100% en verde.
-  - **`[REFACTOR]`:** Ejecutar validación en **Modo Avión** (`RNF-04`) y documentar métricas reales obtenidas.
+- [x] **Tarea 7.1 — Suite Instrumentada y Despliegue en Dispositivo Físico USB**
+  - **`[RED]`:** Crear suites de prueba y arnés de depuración USB/Wi-Fi en `scripts/adb-debug.sh`.
+  - **`[GREEN]`:** Ejecutar despliegue con `make deploy-usb` sobre **Pixel 10 Pro XL (`58071FDCQ005YX`)**, verificando arranque en frío con `SplashScreen` nativa, renderizado reactivo del arte y captura de pantalla en vivo.
+  - **`[REFACTOR]`:** Validar comportamiento 100% offline y estabilidad visual en el hardware físico.
 
 ---
 
@@ -133,12 +133,12 @@
 
 > **Cobertura:** `HU-06`, `RF-05` (`CA-05.1` Icono adaptativo + `<monochrome>` + WebP sin template, `CA-05.2` `SplashScreen` nativa cero-delay + `Edge-to-Edge`, `CA-05.3` Activos maestros `512×512` y `1024×500`), `CB-07`, `DD-05 Opción A`.
 
-- [ ] **Tarea 8.1 — Icono Adaptativo (`<background>`, `<foreground>`, `<monochrome>`), Densidades `.webp` y Activos Maestros (`512×512` / `1024×500`)**
+- [x] **Tarea 8.1 — Icono Adaptativo (`<background>`, `<foreground>`, `<monochrome>`), Densidades `.webp` y Activos Maestros (`512×512` / `1024×500`)**
   - **`[RED]`:** Crear `app/src/test/java/com/laralbir/img2asciiim/ui/branding/BrandAssetsAndSplashRobolectricTest.kt` verificando: (1) `@mipmap/ic_launcher` y `@mipmap/ic_launcher_round` resuelven en API 26+ como `AdaptiveIconDrawable` con capas `background`, `foreground` y —en API 33+ / descriptor XML `mipmap-anydpi-v26`— `<monochrome>` no nulas (`CA-05.1`); (2) `@drawable/ic_launcher_background`, `@drawable/ic_launcher_foreground` e `@drawable/ic_launcher_monochrome` declaran lienzo `108dp × 108dp` respetando la zona segura central de `66dp × 66dp`; (3) todas las variantes `mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher*.webp` existen, decodifican a `48`, `72`, `96`, `144` y `192` px respectivamente y sus checksums SHA-256 difieren de los iconos verdes por defecto del template (`CA-05.1`); (4) existen `docs/assets/icon-512.png` (`512 × 512 px`) y `docs/assets/launch-feature-1024x500.png` (`1024 × 500 px`) como imágenes PNG válidas no vacías (`CA-05.3`). Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo (`RED`).
   - **`[GREEN]`:** Generar `docs/assets/icon-512.png` y `docs/assets/launch-feature-1024x500.png` (coherentes con `docs/assets/banner.png`), crear los `VectorDrawable` `ic_launcher_{background,foreground,monochrome}.xml` (`#0D1117` + glifo esmeralda/cian avión/imagen → matriz Braille/ASCII en burbuja IM), añadir `<monochrome android:drawable="@drawable/ic_launcher_monochrome" />` en `mipmap-anydpi-v26/ic_launcher*.xml` y regenerar los `.webp` en `mipmap-{mdpi..xxxhdpi}`. Confirmar tests de activos en verde (`GREEN`).
   - **`[REFACTOR]`:** Simplificar y alinear rutas SVG/`pathData` a píxel entero en la cuadrícula `108×108`, verificar silueta en *Themed Icons* claro/oscuro y optimizar peso `.webp` lossless.
 
-- [ ] **Tarea 8.2 — `SplashScreen` API Nativa (`androidx.core:core-splashscreen`), `Theme.Img2asciiIM.Starting` y Arranque en Frío en `MainActivity`**
+- [x] **Tarea 8.2 — `SplashScreen` API Nativa (`androidx.core:core-splashscreen`), `Theme.Img2asciiIM.Starting` y Arranque en Frío en `MainActivity`**
   - **`[RED]`:** Ampliar `BrandAssetsAndSplashRobolectricTest.kt` verificando: (1) `AndroidManifest.xml` asigna `@style/Theme.Img2asciiIM.Starting` y **no** declara ninguna `SplashActivity` adicional (`CA-05.2`); (2) `Theme.Img2asciiIM.Starting` (en `values`, `values-night` y `values-v31`) define `windowSplashScreenBackground`, `windowSplashScreenAnimatedIcon` (`@drawable/ic_splash_logo`, `240dp × 240dp` con zona segura `160dp`), `windowSplashScreenBrandingImage` en API 31+ (`@drawable/ic_splash_branding`, `200dp × 80dp`) y `postSplashScreenTheme = @style/Theme.Img2asciiIM` (`CA-05.2`, `CB-07`); (3) el lanzamiento en frío de `MainActivity` (`ActivityScenario.launch`) ejecuta `installSplashScreen()` antes de `super.onCreate()`, transiciona el tema activo a `Theme.Img2asciiIM`, renderiza el árbol Compose `Edge-to-Edge` en el primer fotograma sin `delay()` artificial y soporta también arranque con `Intent.ACTION_SEND` (`CA-05.2`). Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo (`RED`).
   - **`[GREEN]`:** Añadir `androidx.core:core-splashscreen` en `gradle/libs.versions.toml` y `app/build.gradle.kts`, crear `@drawable/ic_splash_logo` (`AnimatedVectorDrawable` `≤ 300 ms` no bloqueante según `DD-05 Opción A`) e `@drawable/ic_splash_branding`, declarar `Theme.Img2asciiIM.Starting` en `values/themes.xml`, `values-night/themes.xml` y `values-v31/themes.xml`, actualizar `AndroidManifest.xml` e integrar `installSplashScreen()` → `super.onCreate()` → `enableEdgeToEdge()` en `MainActivity.kt`. Confirmar toda la suite `BrandAssetsAndSplashRobolectricTest` en verde (`GREEN`).
   - **`[REFACTOR]`:** Medir tiempo de arranque en frío (`am start -S -W`) en dispositivo/AVD confirmando ausencia de pantallas blancas o bloqueos, ejecutar `./gradlew lintDebug` con **0 errores** y actualizar el estado final de [`spec.md`](spec.md) a `IMPLEMENTADO` una vez completados los Slices `1..8`.

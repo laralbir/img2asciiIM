@@ -3,7 +3,7 @@
 | Campo | Valor |
 | :--- | :--- |
 | **ID de Especificación** | `001-core-img2ascii-im` |
-| **Estado** | `APROBADO — Validado por el usuario (2026-11-06)` |
+| **Estado** | `IMPLEMENTADO — Verificado en hardware USB (Pixel 10 Pro XL) y suite TDD (2026-11-06)` |
 | **Autor(es)** | `sdd-architect` |
 | **Fecha de Creación** | `2026-11-06` |
 | **Última Actualización** | `2026-11-06` |
