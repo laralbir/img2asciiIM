@@ -59,14 +59,15 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="img2asciiim" />
             </intent-filter>
-            <intent-filter>
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="laralbir.github.io"
-                    android:pathPrefix="/img2asciiIM" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="laralbir.github.io" />
+                <data android:pathPrefix="/img2asciiIM" />
+                <data android:pathPrefix="/img2asciiIM/" />
             </intent-filter>
         </activity>
     </application>

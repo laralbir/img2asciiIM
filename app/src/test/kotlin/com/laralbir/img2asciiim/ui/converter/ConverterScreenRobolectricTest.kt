@@ -56,10 +56,18 @@ class ConverterScreenRobolectricTest {
   private class FakeShareGateway : MessageShareGateway {
     var lastCopied: String? = null
     var lastSharedPreset: ImPlatformPreset? = null
+    var clipboardContent: String? = null
+
+    var clipboardText: String?
+      @JvmName("getFakeClipboardTextProp") get() = clipboardContent ?: lastCopied
+      @JvmName("setFakeClipboardTextProp") set(value) { clipboardContent = value }
 
     override fun copyToClipboard(text: String) {
       lastCopied = text
+      clipboardContent = text
     }
+
+    override fun getClipboardText(): String? = clipboardContent ?: lastCopied
 
     override fun shareToPlatform(text: String, preset: ImPlatformPreset): ShareOutcome {
       lastSharedPreset = preset
@@ -97,6 +105,7 @@ class ConverterScreenRobolectricTest {
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_GALLERY).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_DOCUMENTS).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CAMERA).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CLIPBOARD).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_DEMO).assertDoesNotExist()
 
     // Platform Presets
@@ -145,6 +154,34 @@ class ConverterScreenRobolectricTest {
 
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_SHARE).performClick()
     assertTrue(gateway.lastSharedPreset == ImPlatformPreset.WHATSAPP)
+  }
+
+  @Test
+  fun converterScreen_clickingClipboardChip_triggersLoadFromClipboard() {
+    val repo = FakeImageSourceRepo()
+    val gateway = FakeShareGateway().apply {
+      clipboardText = "https://laralbir.github.io/img2asciiIM/#d=test"
+    }
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repo,
+      messageShareGateway = gateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.setContent {
+      Img2asciiIMTheme {
+        ConverterScreen(
+          viewModel = viewModel,
+          onPrepareCameraCaptureTarget = { null },
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CLIPBOARD).performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
   }
 
   @Test
@@ -231,10 +268,12 @@ class ConverterScreenRobolectricTest {
       }
     }
 
-    // Both chips exist
+    // Chips & actions exist
     composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_INCLUDE_ASCII).assertExists()
     composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_ATTACH_DEEP_LINK).assertExists()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CHECK_UPDATES).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CONFIG_APP_LINKS).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CONFIG_APP_LINKS_CARD).assertExists()
 
     // Toggle off ASCII preview -> triggers HD mode expanded card
     composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_INCLUDE_ASCII).performScrollTo().performClick()

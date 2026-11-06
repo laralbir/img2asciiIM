@@ -28,6 +28,13 @@ class AndroidMessageShareGateway(
     clipboard.setPrimaryClip(clip)
   }
 
+  override fun getClipboardText(): String? {
+    val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return null
+    val clip = clipboard.primaryClip ?: return null
+    if (clip.itemCount == 0) return null
+    return clip.getItemAt(0)?.text?.toString()
+  }
+
   override fun shareToPlatform(
     text: String,
     preset: ImPlatformPreset,

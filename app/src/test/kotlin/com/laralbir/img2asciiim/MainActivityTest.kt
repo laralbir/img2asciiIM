@@ -46,6 +46,22 @@ class MainActivityTest {
       resolvedList3.firstOrNull { it.activityInfo.name == MainActivity::class.java.name },
       "MainActivity must resolve https://laralbir.github.io/img2asciiIM/...",
     )
+
+    // Test http://laralbir.github.io/img2asciiIM/#d=test
+    val intentHttp = Intent(Intent.ACTION_VIEW, Uri.parse("http://laralbir.github.io/img2asciiIM/#d=test"))
+    val resolvedListHttp = packageManager.queryIntentActivities(intentHttp, 0)
+    assertNotNull(
+      resolvedListHttp.firstOrNull { it.activityInfo.name == MainActivity::class.java.name },
+      "MainActivity must resolve http://laralbir.github.io/img2asciiIM/...",
+    )
+
+    // Test https://laralbir.github.io/img2asciiIM/
+    val intentTrailingSlash = Intent(Intent.ACTION_VIEW, Uri.parse("https://laralbir.github.io/img2asciiIM/"))
+    val resolvedListTrailingSlash = packageManager.queryIntentActivities(intentTrailingSlash, 0)
+    assertNotNull(
+      resolvedListTrailingSlash.firstOrNull { it.activityInfo.name == MainActivity::class.java.name },
+      "MainActivity must resolve https://laralbir.github.io/img2asciiIM/",
+    )
   }
 
   @Test

@@ -184,7 +184,7 @@ open class DeepLinkImageCodec {
     return "$DEEP_LINK_BASE#d=$base64Payload"
   }
 
-  fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
+  open fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
     if (urlOrUri.isBlank()) {
       return DomainResult.Failure(ImageDecodeError.InvalidUriScheme)
     }
@@ -231,11 +231,11 @@ open class DeepLinkImageCodec {
   internal fun extractPayload(url: String): String? {
     val dIdx = url.indexOf("#d=")
     if (dIdx != -1) {
-      return sanitizePayload(url.substring(dIdx + 3))
+      return extractParamValue(url, dIdx + 3)
     }
     val hashIdx = url.indexOf("#data=")
     if (hashIdx != -1) {
-      return sanitizePayload(url.substring(hashIdx + 6))
+      return extractParamValue(url, hashIdx + 6)
     }
     val queryDIdx = url.indexOf("?d=")
     if (queryDIdx != -1) {
@@ -252,6 +252,17 @@ open class DeepLinkImageCodec {
     val ampDataIdx = url.indexOf("&data=")
     if (ampDataIdx != -1) {
       return extractParamValue(url, ampDataIdx + 6)
+    }
+    if (url.startsWith("img2asciiim://") || url.startsWith("img2ascii://")) {
+      val schemeEnd = url.indexOf("://") + 3
+      val remainder = url.substring(schemeEnd).trimStart('/')
+      if (remainder.isNotEmpty() && !remainder.contains('/') && !remainder.contains('?')) {
+        return sanitizePayload(remainder)
+      }
+    }
+    val trimmed = url.trim()
+    if (trimmed.startsWith("UklGR")) {
+      return sanitizePayload(trimmed)
     }
     return null
   }
@@ -273,14 +284,17 @@ open class DeepLinkImageCodec {
   private fun sanitizePayload(raw: String): String? {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return null
+    // Cut payload at any whitespace/newline (\s) and remove enclosing brackets or punctuation
+    val candidate = trimmed.split(Regex("\\s+"), limit = 2)[0]
+      .trimEnd(')', ']', '}', '>', '"', '\'', '.', ',', ';')
     val decoded = try {
-      if (trimmed.contains("%")) {
-        java.net.URLDecoder.decode(trimmed, "UTF-8")
+      if (candidate.contains("%")) {
+        java.net.URLDecoder.decode(candidate, "UTF-8")
       } else {
-        trimmed
+        candidate
       }
     } catch (_: Exception) {
-      trimmed
+      candidate
     }
     return decoded.trim().takeIf { it.isNotEmpty() }
   }

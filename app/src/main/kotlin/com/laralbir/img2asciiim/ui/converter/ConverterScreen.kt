@@ -2,6 +2,7 @@ package com.laralbir.img2asciiim.ui.converter
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LightMode
@@ -60,6 +62,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -100,6 +103,7 @@ object ConverterTestTags {
   const val BTN_GALLERY = "btn_source_gallery"
   const val BTN_DOCUMENTS = "btn_source_documents"
   const val BTN_CAMERA = "btn_source_camera"
+  const val BTN_CLIPBOARD = "btn_source_clipboard"
   const val BTN_DEMO = "btn_source_demo"
   const val CHAT_BUBBLE_CARD = "chat_bubble_preview_card"
   const val ASCII_TEXT = "ascii_art_text"
@@ -115,6 +119,8 @@ object ConverterTestTags {
   const val CHIP_INCLUDE_ASCII = "chip_include_ascii"
   const val CHIP_ATTACH_DEEP_LINK = "chip_attach_deep_link"
   const val BTN_CHECK_UPDATES = "btn_check_updates"
+  const val BTN_CONFIG_APP_LINKS = "btn_config_app_links"
+  const val BTN_CONFIG_APP_LINKS_CARD = "btn_config_app_links_card"
   const val HD_MODE_EXPANDED_CARD = "hd_mode_expanded_card"
 }
 
@@ -125,9 +131,26 @@ fun ConverterScreen(
   onPrepareCameraCaptureTarget: () -> Uri?,
   modifier: Modifier = Modifier,
 ) {
+  val context = LocalContext.current
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val snackbarHostState = remember { SnackbarHostState() }
   var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+  val openAppLinksSettings = {
+    try {
+      val intent = Intent(
+        Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS,
+        Uri.parse("package:${context.packageName}"),
+      )
+      context.startActivity(intent)
+    } catch (_: Exception) {
+      val fallbackIntent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.parse("package:${context.packageName}"),
+      )
+      context.startActivity(fallbackIntent)
+    }
+  }
 
   // Activity Result Launchers
   val galleryLauncher = rememberLauncherForActivityResult(
@@ -154,7 +177,13 @@ fun ConverterScreen(
     viewModel.effects.collectLatest { effect ->
       when (effect) {
         is ConverterUiEffect.ShowSnackbar -> {
-          snackbarHostState.showSnackbar(effect.message)
+          val result = snackbarHostState.showSnackbar(
+            message = effect.message,
+            actionLabel = effect.actionLabel,
+          )
+          if (result == SnackbarResult.ActionPerformed) {
+            effect.onAction?.invoke()
+          }
         }
       }
     }
@@ -191,6 +220,16 @@ fun ConverterScreen(
         modifier = Modifier.testTag(ConverterTestTags.TOP_BAR),
         actions = {
           IconButton(
+            onClick = openAppLinksSettings,
+            modifier = Modifier.testTag(ConverterTestTags.BTN_CONFIG_APP_LINKS),
+          ) {
+            Icon(
+              imageVector = Icons.Default.Link,
+              contentDescription = stringResource(R.string.action_open_app_links_settings),
+              tint = MaterialTheme.colorScheme.primary,
+            )
+          }
+          IconButton(
             onClick = { viewModel.onCheckForUpdates(BuildConfig.VERSION_NAME) },
             enabled = !uiState.isCheckingUpdate,
             modifier = Modifier.testTag(ConverterTestTags.BTN_CHECK_UPDATES),
@@ -224,7 +263,6 @@ fun ConverterScreen(
       )
     },
   ) { innerPadding ->
-    val context = LocalContext.current
     uiState.updateCheckResult?.let { updateOutcome ->
       when (updateOutcome) {
         is UpdateCheckResult.UpdateAvailable -> {
@@ -354,6 +392,7 @@ fun ConverterScreen(
             cameraLauncher.launch(uri)
           }
         },
+        onClipboardClick = viewModel::onLoadFromClipboard,
       )
 
       // 3. Platform Preset Selector
@@ -375,6 +414,7 @@ fun ConverterScreen(
         attachDeepLink = uiState.attachDeepLink,
         onToggleIncludeAsciiArt = viewModel::onToggleIncludeAsciiArt,
         onToggleAttachDeepLink = viewModel::onToggleAttachDeepLink,
+        onOpenAppLinksSettings = openAppLinksSettings,
       )
 
       // 6. Chat Bubble Preview Card
@@ -409,6 +449,7 @@ private fun ImageSourceSection(
   onGalleryClick: () -> Unit,
   onDocumentClick: () -> Unit,
   onCameraClick: () -> Unit,
+  onClipboardClick: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(
@@ -470,6 +511,15 @@ private fun ImageSourceSection(
         leadingIcon = { Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp)) },
         modifier = Modifier.testTag(ConverterTestTags.BTN_CAMERA).semantics {
           contentDescription = "Tomar fotografía con la cámara"
+        },
+      )
+      FilterChip(
+        selected = sourceOrigin == ImageSourceOrigin.CLIPBOARD,
+        onClick = onClipboardClick,
+        label = { Text(stringResource(R.string.source_clipboard)) },
+        leadingIcon = { Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp)) },
+        modifier = Modifier.testTag(ConverterTestTags.BTN_CLIPBOARD).semantics {
+          contentDescription = "Cargar imagen desde enlace en el portapapeles"
         },
       )
     }
@@ -989,6 +1039,7 @@ private fun DeliveryOptionsSection(
   attachDeepLink: Boolean,
   onToggleIncludeAsciiArt: (Boolean) -> Unit,
   onToggleAttachDeepLink: (Boolean) -> Unit,
+  onOpenAppLinksSettings: () -> Unit = {},
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Text(
@@ -1023,6 +1074,19 @@ private fun DeliveryOptionsSection(
         enabled = preset != ImPlatformPreset.INSTAGRAM_DIRECT,
         modifier = Modifier.testTag(ConverterTestTags.CHIP_ATTACH_DEEP_LINK),
       )
+    }
+
+    OutlinedButton(
+      onClick = onOpenAppLinksSettings,
+      modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.BTN_CONFIG_APP_LINKS_CARD),
+    ) {
+      Icon(
+        imageVector = Icons.Default.Link,
+        contentDescription = null,
+        modifier = Modifier.size(18.dp),
+      )
+      Spacer(modifier = Modifier.width(8.dp))
+      Text(stringResource(R.string.action_open_app_links_settings))
     }
 
     if (!includeAsciiArt && attachDeepLink) {

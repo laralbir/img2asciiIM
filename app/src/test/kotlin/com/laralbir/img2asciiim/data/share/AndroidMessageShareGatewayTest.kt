@@ -37,6 +37,28 @@ class AndroidMessageShareGatewayTest {
   }
 
   @Test
+  fun returnsNullWhenClipboardIsEmpty() {
+    val clipboard = context.getSystemService(ClipboardManager::class.java)
+    clipboard.clearPrimaryClip()
+    val gateway = AndroidMessageShareGateway(context)
+
+    val text = gateway.getClipboardText()
+
+    assertEquals(null, text)
+  }
+
+  @Test
+  fun readsTextFromClipboardSuccessfully() {
+    val gateway = AndroidMessageShareGateway(context)
+    val testPayload = "https://laralbir.github.io/img2asciiIM/#d=testpayload"
+    gateway.copyToClipboard(testPayload)
+
+    val text = gateway.getClipboardText()
+
+    assertEquals(testPayload, text)
+  }
+
+  @Test
   fun opensCanonicalTelegramPackageDirectlyWhenInstalled() {
     installPackage("org.telegram.messenger")
     val launchedIntents = mutableListOf<Intent>()

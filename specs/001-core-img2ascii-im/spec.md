@@ -3,7 +3,7 @@
 | Campo | Valor |
 | :--- | :--- |
 | **ID de Especificación** | `001-core-img2ascii-im` |
-| **Estado** | `IMPLEMENTADO — Actualizado con WebP Lossy, Adaptive Resizing #d=, App Links y Empty State (2026-11-06)` |
+| **Estado** | `IMPLEMENTADO — Actualizado con WebP Lossy, Adaptive Resizing #d=, App Links, Empty State, Importación desde Portapapeles (Offline Fallback) y Configuración de Enlaces Nativos (2026-11-06)` |
 | **Autor(es)** | `sdd-architect` |
 | **Fecha de Creación** | `2026-11-06` |
 | **Última Actualización** | `2026-11-06` |
@@ -32,7 +32,16 @@ Los conversores de imagen a ASCII existentes fracasan en este contexto por cuatr
 ### 1.2 Visión de `img2asciiIM`
 **img2asciiIM** transforma **100% offline en el propio dispositivo** cualquier imagen procedente de galería, cámara, almacenamiento local/nube vía SAF (incluyendo **Google Drive**) o el menú *Compartir* de Android en una pieza compacta y nítida de arte de texto (**Braille Unicode `U+2800..U+28FF`**, **ASCII Monoespaciado** o **Bloques Unicode `█▓▒░`**), ajustada matemáticamente a la anchura de burbuja y al límite exacto de caracteres de **WhatsApp**, **Telegram** o **Instagram Direct**, lista para enviarse o copiarse en un solo toque.
 
-### 1.3 Fuera de Alcance (*Non-Goals* del MVP `001`)
+### 1.3 El Desafío del Destinatario sin Conexión y los Enlaces Web en Android
+En los escenarios de vuelo comercial, cruceros o Modo Avión, cuando el receptor recibe un mensaje con un enlace autónomo HD (`#d=...`), surgen dos dificultades técnicas habituales:
+1. **Delegación no deseada al navegador web:** Por defecto, muchas versiones y capas de personalización de Android abren enlaces HTTPS estándar (`https://laralbir.github.io/img2asciiIM/#d=...`) en Google Chrome u otros navegadores web en lugar de transferirlos directamente a la aplicación nativa instalada, si los App Links no han sido explícitamente activados por el usuario en los ajustes de «Abrir de forma predeterminada».
+2. **Fallo de navegación en redes restringidas:** Al abrir Chrome en el Wi-Fi gratuito de mensajería del avión (que filtra y bloquea el tráfico web general), el navegador se detiene inmediatamente mostrando el error *«Sin conexión a internet»*, dejando al receptor sin poder visualizar la fotografía.
+
+Para ofrecer una experiencia 100 % fiable en cualquier circunstancia, `img2asciiIM` incorpora una solución de doble vía:
+- **Importación Inteligente desde Portapapeles (100 % Offline):** El receptor simplemente copia el mensaje o el enlace recibido en WhatsApp o Telegram y abre `img2asciiIM`. La aplicación detecta automáticamente la presencia de la imagen en el portapapeles al iniciar o reanudar la app (o el usuario pulsa el chip interactivo **«Portapapeles»**), extrayendo y decodificando el mapa de bits WebP en memoria **100 % sin internet**, sin tocar el navegador y con cero consumo de datos.
+- **Configuración Asistida de Enlaces Nativos de Android:** La aplicación incorpora una acción directa que abre la sección de ajustes del sistema Android («Abrir de forma predeterminada» / *Open by default*), permitiendo al usuario autorizar que el dominio `laralbir.github.io` se abra siempre de forma nativa e instantánea en `img2asciiIM` sin pasar por Chrome.
+
+### 1.4 Fuera de Alcance (*Non-Goals* del MVP `001`)
 - Conversión de vídeo o GIFs animados a secuencias de mensajes de texto.
 - Servidores backend propios, cuentas de usuario, analítica o telemetría en la nube.
 - Envío automatizado en segundo plano mediante APIs privadas/bots no oficiales de WhatsApp, Telegram o Instagram (toda entrega usa los mecanismos estándar de Android `ACTION_SEND` y `ClipboardManager` iniciados por el usuario).
@@ -52,6 +61,8 @@ Los conversores de imagen a ASCII existentes fracasan en este contexto por cuatr
 | **HU-06** | `P0` | **Como** usuario de Android moderno (incluyendo Pixel Launcher con iconos temáticos y tema claro/oscuro), **quiero** que `img2asciiIM` cuente con un icono adaptativo y monocromo propio, imágenes de lanzamiento (*launch/branding*) y una *Splash Screen* nativa instantánea sin pantallas en blanco ni demoras artificiales, **para** percibir una experiencia pulida desde el primer fotograma. | Identidad visual nativa y arranque instantáneo |
 | **HU-07** | `P0` | **Como** usuario que desea compartir fotografías de alta nitidez sobre canales de mensajería, **quiero** conmutar modularmente entre arte de texto y un enlace autónomo HD con códec WebP Lossy (`#d=...`), con redimensionamiento adaptativo anti-división (máx `3.900` caracteres en Telegram o `3.900 - art.length - 1` en modo híbrido, y hasta `65.536` chars en WhatsApp mediante Clipboard-First) y apertura directa nativa (`img2asciiim://view?d=...`), **para** maximizar la resolución y asegurar que el mensaje nunca se divida ni se recorte en el chat. | Envío híbrido WebP, anti-división y App Links |
 | **HU-08** | `P0` | **Como** usuario fuera de tiendas comerciales, **quiero** comprobar in-app la disponibilidad de nuevas versiones oficiales desde GitHub Releases y actualizar mi APK firmado de forma asistida y segura, **para** mantenerme actualizado con total resiliencia sin fallos en vuelo. | Actualizaciones in-app y CI/CD firmado |
+| **HU-09** | `P0` | **Como** receptor de un mensaje sin conexión a internet (en pleno vuelo o en Modo Avión), **quiero** copiar el mensaje o enlace recibido en WhatsApp o Telegram y abrir `img2asciiIM` para que detecte automáticamente la imagen desde el portapapeles (o pulsar el chip «Portapapeles»), **para** ver la fotografía de forma inmediata y 100 % offline sin necesidad de navegador web. | Importación instantánea offline desde portapapeles |
+| **HU-10** | `P1` | **Como** usuario de Android, **quiero** acceder directamente desde la aplicación a los Ajustes de «Abrir de forma predeterminada» de Android, **para** configurar que los enlaces compatibles se abran siempre en `img2asciiIM` de manera nativa sin pasar por Google Chrome. | Enlace directo a configuración de App Links nativos |
 
 ---
 
@@ -59,12 +70,13 @@ Los conversores de imagen a ASCII existentes fracasan en este contexto por cuatr
 
 ### RF-01: Ingesta Universal de Imágenes (Sin Permisos Invasivos)
 
-La aplicación **debe** ofrecer cuatro vías nativas de entrada de imágenes sin declarar `READ_MEDIA_IMAGES`, `READ_EXTERNAL_STORAGE` ni `MANAGE_EXTERNAL_STORAGE`:
+La aplicación **debe** ofrecer cinco vías nativas de entrada de imágenes sin declarar `READ_MEDIA_IMAGES`, `READ_EXTERNAL_STORAGE` ni `MANAGE_EXTERNAL_STORAGE`:
 
 1. **Selector Moderno de Fotos (`PickVisualMedia`):** Integración con Android Photo Picker (`PickVisualMediaRequest(ImageOnly)`) para seleccionar fotos de la galería local y proveedores de fotos en la nube integrados en el sistema.
 2. **Selector Universal de Documentos SAF (`OpenDocument` con filtro `image/*`):** Acceso unificado mediante el Storage Access Framework a almacenamiento interno, carpeta `Descargas`, tarjetas SD, unidades USB OTG y proveedores `DocumentsProvider` en la nube instalados en el dispositivo (**Google Drive**, Microsoft OneDrive, Dropbox, Nextcloud).
 3. **Captura Directa desde Cámara:** Disparo fotográfico a través de contrato seguro con `FileProvider` sobre directorio privado de caché `cacheDir/camera_captures/` (o visor `CameraX` según **DD-01**).
 4. **Recepción Externa vía Share Sheet (`Intent.ACTION_SEND` con MIME `image/*`):** Registro de `<intent-filter>` en `MainActivity` para recibir `Intent.EXTRA_STREAM` cuando el usuario comparte una imagen desde Google Drive, Galería, gestor de archivos o navegador hacia `img2asciiIM` (soportando tanto arranque en frío como `onNewIntent` con actividad ya abierta).
+5. **Importación desde Portapapeles (`ClipboardManager`):** Ingesta asistida de mensajes o enlaces con payload fotográfico WebP recibidos en chats (WhatsApp, Telegram, etc.), disponible tanto por detección reactiva al reanudar la app como mediante el chip interactivo **«Portapapeles»** en la barra de origen de imágenes y en el Empty State.
 
 #### Criterios de Aceptación de `RF-01`
 
@@ -96,7 +108,12 @@ La aplicación **debe** ofrecer cuatro vías nativas de entrada de imágenes sin
 - **CA-01.6 — Estado Inicial Limpio al Iniciar (`Empty State`) sin Imagen Demo:**
   - **Given:** La aplicación se inicia por primera vez o en cualquier arranque en frío/caliente desde el lanzador del sistema sin un `Intent.ACTION_SEND` ni Deep Link entrante.
   - **When:** Se compone la pantalla principal de la aplicación.
-  - **Then:** La aplicación se presenta en un estado limpio (*Empty State*) interactivo con ilustración técnica y tarjetas/botones directos invitando a seleccionar foto desde **Galería** (`PickVisualMedia`), **Archivos / Drive** (SAF `OpenDocument`) o **Cámara** (`TakePicture`), sin precargar ninguna imagen de muestra/demo artificial. El área de vista previa no muestra conversiones previas hasta que el usuario elija activamente una fotografía, optimizando el arranque y garantizando una experiencia sin elementos intrusivos.
+  - **Then:** La aplicación se presenta en un estado limpio (*Empty State*) interactivo con ilustración técnica y tarjetas/botones directos invitando a seleccionar foto desde **Galería** (`PickVisualMedia`), **Archivos / Drive** (SAF `OpenDocument`), **Cámara** (`TakePicture`) o importar desde **Portapapeles**, sin precargar ninguna imagen de muestra/demo artificial. El área de vista previa no muestra conversiones previas hasta que el usuario elija activamente una fotografía, optimizando el arranque y garantizando una experiencia sin elementos intrusivos.
+
+- **CA-01.7 — Selección e Importación desde Portapapeles (Chip Manual):**
+  - **Given:** El portapapeles del sistema contiene un mensaje o enlace con un payload válido de `img2asciiIM` (`#d=...`, `#data=...`, etc.).
+  - **When:** El usuario pulsa el chip interactivo **«Portapapeles»** en la barra de origen o en el Empty State.
+  - **Then:** La aplicación extrae el payload fotográfico, decodifica el `PixelGrid` 100 % offline en memoria, establece `ImageSourceOrigin.CLIPBOARD` y renderiza inmediatamente la vista previa sin emitir tráfico de red. Si el portapapeles no contiene un payload válido, muestra un aviso claro y no altera el estado.
 
 ---
 
@@ -369,6 +386,43 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
   - **When:** Se ejecuta la comprobación de actualizaciones.
   - **Then:** Las conexiones HTTP aplican un tiempo límite estricto de conexión y lectura (`connectTimeoutMs = 4000`, `readTimeoutMs = 4000`). Ante cualquier `IOException`, error de resolución DNS, código HTTP de error o timeout, el comprobador captura la situación limpiamente y devuelve `UpdateCheckResult.OfflineOrError("Sin conexión a internet o servicio no disponible")`, sin lanzar excepciones no controladas ni afectar al funcionamiento del conversor fotográfico.
 
+### RF-09: Ingesta Offline desde Portapapeles y Configuración de Enlaces Nativos (App Links)
+
+La aplicación **debe** ofrecer una solución completa y de máxima resiliencia cuando el receptor se encuentra sin conexión web general (Modo Avión o Wi-Fi satelital restringido a mensajería) o cuando el sistema Android redirige por defecto los enlaces web hacia Google Chrome:
+
+- **Criterio 09.1 — Detección Reactiva Automática al Iniciar o Reanudar (`Lifecycle.Event.ON_RESUME`):**
+  - **Given:** El usuario copia en WhatsApp, Telegram o cualquier aplicación un mensaje o enlace que contiene un payload fotográfico (`#d=`, `#data=`, `?d=`, `?data=` o `img2asciiim://view?d=`) y abre o reanuda `img2asciiIM`.
+  - **When:** La actividad pasa al estado de ciclo de vida `RESUMED` (`onResume`).
+  - **Then:** La aplicación inspecciona de manera asíncrona y no bloqueante el contenido de texto en `ClipboardManager`. Si detecta un payload válido de `img2asciiIM` y la aplicación se encuentra en el estado inicial (*Empty State*), importa y decodifica la fotografía automáticamente estableciendo `ImageSourceOrigin.CLIPBOARD`; si ya existe una fotografía activa modificada por el usuario, muestra un banner o notificación interactiva en pantalla (*«Foto detectada en el portapapeles. ¿Deseas abrirla?»* con acción directa «Abrir»), garantizando que el usuario no pierda su trabajo previo.
+
+- **Criterio 09.2 — Botón y Chip Manual «Portapapeles» en la Barra de Origen y Empty State:**
+  - **Given:** La pantalla principal de `img2asciiIM` en cualquier estado (Empty State o workspace activo).
+  - **When:** El usuario pulsa el chip interactivo **«Portapapeles»** ubicado en la fila superior de fuentes de imagen (junto a «Galería», «Archivos / Drive» y «Cámara») o en la tarjeta correspondiente del Empty State.
+  - **Then:**
+    1. Si el portapapeles contiene un mensaje o enlace con payload fotográfico compatible, la app extrae el Base64, decodifica el `PixelGrid`, asigna `ImageSourceOrigin.CLIPBOARD` y renderiza el resultado fotográfico al instante.
+    2. Si el portapapeles está vacío o no contiene ningún enlace ni payload de `img2asciiIM`, la interfaz muestra un aviso claro y amigable (*«El portapapeles no contiene un enlace ni una foto de img2asciiIM»*), sin alterar la imagen o el estado actual ni provocar excepciones.
+
+- **Criterio 09.3 — Extracción Tolerante y Sanitización en Mensajes Mixtos o Híbridos:**
+  - **Given:** Un texto copiado en el portapapeles que corresponde a un mensaje híbrido completo (bloque de arte ASCII/Braille, texto conversacional del remitente y la URL `#d=...`).
+  - **When:** El extractor procesa la cadena copiada.
+  - **Then:** El analizador determinista aísla y extrae con precisión el payload Base64 ignorando todos los caracteres de dibujo, saltos de línea y emojis adyacentes, procediendo a su decodificación sin requerir que el usuario aísle manualmente la URL en el chat.
+
+- **Criterio 09.4 — Operación 100% Offline Garantizada (Cero Dependencia de Red y Cero Navegador):**
+  - **Given:** El dispositivo receptor en Modo Avión estricto o conectado a una red Wi-Fi de avión que filtra y bloquea el tráfico web ordinario.
+  - **When:** Se ejecuta la importación desde el portapapeles (tanto por detección automática como por pulsación del chip manual).
+  - **Then:** Todo el ciclo de extracción, validación de cabecera (`RIFF...WEBP` / `0xFF 0xD8`), decodificación `Bitmap` y composición de `PixelGrid` se realiza en memoria local en menos de `150 ms`, mostrando la fotografía nítida sin invocar a Google Chrome ni realizar llamadas de red.
+
+- **Criterio 09.5 — Lanzamiento Asistido de la Pantalla «Abrir de forma predeterminada» de Android:**
+  - **Given:** El usuario desea que Android abra automáticamente los enlaces de `img2asciiIM` en la app instalada en lugar de delegarlos en Google Chrome.
+  - **When:** El usuario pulsa la opción «Configurar enlaces predeterminados» en la interfaz (menú superior o diálogo de ayuda de enlaces).
+  - **Then:** La aplicación construye y despacha un `Intent` explícito hacia la configuración del sistema Android:
+    ```kotlin
+    Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS).apply {
+      data = Uri.parse("package:" + context.packageName)
+    }
+    ```
+    Si el sistema o la capa del fabricante (OEM) no soporta dicha acción (`ActivityNotFoundException`), aplica un fallback seguro hacia `Settings.ACTION_APPLICATION_DETAILS_SETTINGS`, guiando al usuario a la sección «Abrir de forma predeterminada» para marcar «Abrir enlaces compatibles» y añadir el dominio `laralbir.github.io`.
+
 ---
 
 ## 4. Restricciones de Dominio e Invariantes Técnicos
@@ -392,6 +446,12 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
    - En modo solo enlace HD (`includeTextArt == false` y `attachDeepLink == true`): $\text{length}(\text{url}) \le 3.900$.
    El margen determinista de $4.096 - 3.900 = 196$ caracteres salvaguarda contra particiones no deseadas en burbujas múltiples de chat.
 6. **Invariante de Eficiencia de Códec WebP Lossy:** El generador de enlaces autónomos produce exclusivamente flujos WebP Lossy (`WEBP_LOSSY` / `WEBP`), garantizando un ahorro del 35% al 50% de caracteres frente a JPEG para idéntica fidelidad perceptual.
+7. **Invariante de Extracción Determinista de Payloads en Portapapeles:**
+   La extracción de payloads desde el portapapeles se realiza mediante un analizador determinista tolerante (patrón regex estricto sin retroceso catastrófico):
+   `(?:https?://[^#?\s]+/img2asciiIM/(?:index\.html)?)?(?:#|\?)(?:d|data)=([A-Za-z0-9_-]+)|img2asciiim://view\?(?:d|data)=([A-Za-z0-9_-]+)`
+   garantizando un procesamiento lineal $O(N)$ sobre la longitud del texto copiado ($N \le 70.000$ caracteres), aislando con precisión el payload WebP aunque el usuario copie el mensaje completo con arte de texto y comentarios.
+8. **Invariante de Privacidad Efímera en Portapapeles (Cero Persistencia de Datos Personales):**
+   El portapapeles del sistema se inspecciona única y exclusivamente para identificar si contiene un payload fotográfico compatible con `img2asciiIM`. Ningún texto de chat, contraseña o dato personal no relacionado se almacena en memoria secundaria, disco, base de datos ni registros de log (`Logcat`), respetando la privacidad absoluta del usuario.
 
 ---
 
@@ -407,6 +467,7 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 | **RNF-06** | **Velocidad de Suite TDD** | Todos los tests unitarios de `domain/` **deben** ejecutarse en JVM pura en **`< 100 ms`** en conjunto. | Ejecución `./gradlew testDebugUnitTest` |
 | **RNF-07** | **Respeto de Insets de Navegación (Edge-to-Edge Safe Area)** | La barra inferior de acciones (`Copiar` y `Enviar a...`) **debe** aplicar obligatoriamente `navigationBarsPadding()` para garantizar que la barra de navegación del sistema Android (tanto barra de 3 botones como barra gestual) jamás se superponga ni interfiera con los botones de acción interactivos, extendiendo a su vez el fondo del contenedor hasta el borde inferior de la pantalla. | Compose UI Test y verificación en hardware físico USB |
 | **RNF-08** | **Actualizaciones Seguras y Resiliencia de Red** | La comprobación de nuevas versiones en GitHub Releases debe aplicar un tiempo límite estricto `≤ 4.000 ms`, degradar de forma silenciosa e inocua en Modo Avión o redes cautivas sin lanzar excepciones no controladas, y verificar sumas criptográficas SHA-256 en las releases publicadas por CI/CD. | Test unitario con simulación de timeouts/red y workflow GitHub Actions |
+| **RNF-09** | **Latencia y Privacidad en Portapapeles** | La comprobación del portapapeles en `onResume` o al pulsar el chip manual **debe** completarse en **`< 20 ms`** en un hilo no bloqueante (`Dispatchers.Default`), sin provocar tirones (*jank*) en el renderizado de Compose ni registrar datos privados del portapapeles en logs. | Test cronometrado JVM y auditoría de privacidad |
 
 ---
 
@@ -426,6 +487,10 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 | **CB-10** | **Fallo de red, timeout o portal cautivo en comprobador in-app de GitHub Releases** | `GitHubUpdateChecker.check()` aplica timeouts de 4.000 ms y captura `IOException` y códigos HTTP anómalos devolviendo `UpdateCheckResult.OfflineOrError`, informando discretamente al usuario sin interrumpir la experiencia de conversión en vuelo. | `data/` + `ui/` |
 | **CB-11** | **Riesgo de truncado en Binder/IPC de Android en `EXTRA_TEXT` para mensajes extensos (> 4 KB) en WhatsApp** | `ImShareIntentFactory` y `SystemClipboardAdapter` aplican entrega Clipboard-First obligatoria: copian preventivamente la totalidad del texto (hasta 65.536 chars) al portapapeles y notifican en pantalla para que el usuario pueda pegar manualmente si WhatsApp o el SO recortan el texto. | `data/` + `ui/` |
 | **CB-12** | **Arranque de la aplicación sin imagen precargada (Empty State)** | La aplicación inicia en un estado limpio interactivo sin instanciar bitmaps demo ni disparar el pipeline de conversión, manteniendo el consumo de memoria en el mínimo basal e invitando explícitamente a cargar fotos desde Galería, Archivos/Drive o Cámara. | `ui/` |
+| **CB-13** | **Portapapeles con texto arbitrario o sin payload fotográfico (ej. texto de chat normal)** | El extractor determina que la cadena no contiene un payload válido de `img2asciiIM`. En `onResume` no realiza ninguna acción intrusiva; si el usuario pulsó el chip «Portapapeles», muestra una notificación informativa (*«El portapapeles no contiene un enlace ni una foto de img2asciiIM»*) sin alterar la imagen en pantalla. | `data/` + `ui/` |
+| **CB-14** | **Portapapeles vacío o con tipos de datos no textuales (audio, clip binario)** | `ClipboardManager.primaryClip` es `null` o no contiene elementos con texto plano; el adaptador maneja la ausencia de forma segura sin excepciones `NullPointerException`. | `data/` + `ui/` |
+| **CB-15** | **Portapapeles con payload WebP truncado o corrupto por copiado parcial en el chat** | `DeepLinkImageCodec` captura de forma segura `IllegalArgumentException` o fallos de decodificación devolviendo `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`, informando al usuario en la UI para que copie el enlace completo. | `data/` + `ui/` |
+| **CB-16** | **Dispositivo OEM o versión Android sin soporte para `ACTION_APP_OPEN_BY_DEFAULT_SETTINGS`** | La app captura `ActivityNotFoundException` y redirige inmediatamente a `Settings.ACTION_APPLICATION_DETAILS_SETTINGS`, garantizando que el usuario acceda siempre a la configuración de la app en Ajustes del sistema. | `ui/` |
 
 ---
 
@@ -444,6 +509,7 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 | `CA-06.1`, `CA-06.2`, `RNF-07` | `ui` | Robolectric + USB (`Slice 9`) | `ConverterScreenRobolectricTest`, `BottomActionControlsTest` |
 | `CA-07.1..07.5`, `CB-08`, `CB-09` | `data` + `ui` | Unit JVM + Robolectric (`Slice 10`) | `DeepLinkImageCodecTest`, `ConverterViewModelTest`, `ConverterScreenRobolectricTest` |
 | `CA-08.1..08.5`, `RNF-08`, `CB-10` | `data` + `ci` | Unit JVM + CI/CD (`Slice 11`) | `GitHubUpdateCheckerTest`, `.github/workflows/release.yml` |
+| `CA-01.7`, `CA-09.1..09.5`, `RNF-09`, `CB-13..16` | `data` + `ui` | Unit JVM + Robolectric (`Slice 12`) | `ClipboardImageExtractorTest`, `ConverterViewModelClipboardTest`, `NativeLinksSettingsTest` |
 
 ---
 
@@ -496,8 +562,16 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 - **Estado:** `[x] Aprobada: Opción A`
 
 ### DD-09: Estado Inicial de la Aplicación (Empty State Interactivo vs. Precarga de Imagen Demo)
-- **Opción A (Recomendada y Aprobada):** Iniciar la aplicación con un **Empty State** limpio, elegante y funcional. La pantalla inicial no carga automáticamente ninguna imagen de muestra, evitando confusión y uso innecesario de memoria, y presenta accesos directos destacados para seleccionar foto desde **Galería**, **Archivos / Drive** o **Cámara**.
+- **Opción A (Recomendada y Aprobada):** Iniciar la aplicación con un **Empty State** limpio, elegante y funcional. La pantalla inicial no carga automáticamente ninguna imagen de muestra, evitando confusión y uso innecesario de memoria, y presenta accesos directos destacados para seleccionar foto desde **Galería**, **Archivos / Drive**, **Cámara** o importar desde **Portapapeles**.
 - **Opción B:** Cargar de manera predeterminada y obligatoria una imagen de muestra demo sintética en cada arranque en frío.
+- **Estado:** `[x] Aprobada: Opción A`
+
+### DD-10: Flujo de Ingesta de Portapapeles (Detección Automática Asistida + Chip Manual) y Configuración de Enlaces Nativos
+- **Opción A (Recomendada y Aprobada):** Arquitectura híbrida de ingesta de portapapeles y enlace nativo:
+  1. Detección automática no intrusiva al reanudar la app (`onResume`), auto-cargando la foto si la app está en Empty State o mostrando un aviso amigable de acción rápida si ya hay una conversión en curso.
+  2. Chip interactivo **«Portapapeles»** permanentemente accesible en la barra superior de origen de imagen y en el Empty State.
+  3. Botón directo de configuración en la interfaz para guiar al usuario a los Ajustes de Android (`Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS`), permitiéndole habilitar la apertura directa de `laralbir.github.io` en la aplicación nativa sin pasar por Google Chrome.
+- **Opción B:** Exclusivamente chip manual en la barra de origen, sin detección automática en `onResume` ni acceso asistido a los Ajustes de enlaces de Android.
 - **Estado:** `[x] Aprobada: Opción A`
 
 ---

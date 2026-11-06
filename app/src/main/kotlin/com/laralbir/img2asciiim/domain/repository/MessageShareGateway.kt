@@ -8,5 +8,6 @@ import com.laralbir.img2asciiim.domain.model.ShareOutcome
  */
 interface MessageShareGateway {
   fun copyToClipboard(text: String)
+  fun getClipboardText(): String?
   fun shareToPlatform(text: String, preset: ImPlatformPreset): ShareOutcome
 }

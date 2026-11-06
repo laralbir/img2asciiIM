@@ -14,6 +14,7 @@ enum class ImageSourceOrigin(val displayName: String) {
   CAMERA("Cámara"),
   INCOMING_SHARE("Compartido"),
   DEEP_LINK("Enlace HD"),
+  CLIPBOARD("Portapapeles"),
 }
 
 /**

@@ -10,14 +10,16 @@
 
 1. [¿Qué es `img2asciiIM` y cuándo te salva el viaje?](#1-qué-es-img2asciiim-y-cuándo-te-salva-el-viaje)
 2. [Consejo de Oro antes de Despegar (Archivos en la Nube y Google Drive)](#2-consejo-de-oro-antes-de-despegar-archivos-en-la-nube-y-google-drive)
-3. [Paso 1: Cómo Elegir o Capturar tu Imagen (4 Formas)](#3-paso-1-cómo-elegir-o-capturar-tu-imagen-4-formas)
-4. [Paso 2: Elegir la App de Destino (WhatsApp, Telegram o Instagram)](#4-paso-2-elegir-la-app-de-destino-whatsapp-telegram-o-instagram)
-5. [Paso 3: Ajustar el Estilo y la Nitidez (Recetas Rápidas)](#5-paso-3-ajustar-el-estilo-y-la-nitidez-recetas-rápidas)
-6. [Paso 4: Elegir Qué Enviar (Arte de Texto y/o Enlace a Foto HD)](#6-paso-4-elegir-qué-enviar-arte-de-texto-yo-enlace-a-foto-hd)
-7. [Paso 5: Enviar en 1 Toque o Copiar al Portapapeles](#7-paso-5-enviar-en-1-toque-o-copiar-al-portapapeles)
-8. [Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#data=...`)](#8-cómo-funciona-el-enlace-hd-autónomo-y-el-visor-web-data)
-9. [Comprobación y Actualizaciones In-App desde GitHub Releases](#9-comprobación-y-actualizaciones-in-app-desde-github-releases)
-10. [Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos](#10-preguntas-frecuentes-faq-y-solución-de-problemas-rápidos)
+3. [Cómo Abrir una Foto Compartida sin Internet ni Navegador (en Pleno Vuelo)](#3-cómo-abrir-una-foto-compartida-sin-internet-ni-navegador-en-pleno-vuelo)
+4. [Cómo Activar que Android Abra los Enlaces Directamente en la App sin Pasar por Chrome](#4-cómo-activar-que-android-abra-los-enlaces-directamente-en-la-app-sin-pasar-por-chrome)
+5. [Paso 1: Cómo Elegir o Capturar tu Imagen (5 Formas)](#5-paso-1-cómo-elegir-o-capturar-tu-imagen-5-formas)
+6. [Paso 2: Elegir la App de Destino (WhatsApp, Telegram o Instagram)](#6-paso-2-elegir-la-app-de-destino-whatsapp-telegram-o-instagram)
+7. [Paso 3: Ajustar el Estilo y la Nitidez (Recetas Rápidas)](#7-paso-3-ajustar-el-estilo-y-la-nitidez-recetas-rápidas)
+8. [Paso 4: Elegir Qué Enviar (Arte de Texto y/o Enlace a Foto HD)](#8-paso-4-elegir-qué-enviar-arte-de-texto-yo-enlace-a-foto-hd)
+9. [Paso 5: Enviar en 1 Toque o Copiar al Portapapeles](#9-paso-5-enviar-en-1-toque-o-copiar-al-portapapeles)
+10. [Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)](#10-cómo-funciona-el-enlace-hd-autónomo-y-el-visor-web-d)
+11. [Comprobación y Actualizaciones In-App desde GitHub Releases](#11-comprobación-y-actualizaciones-in-app-desde-github-releases)
+12. [Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos](#12-preguntas-frecuentes-faq-y-solución-de-problemas-rápidos)
 
 ---
 
@@ -86,19 +88,85 @@ Si llevas en **Google Drive** (o en OneDrive / Dropbox) un plano del hotel, una 
 
 ---
 
-## 3. Paso 1: Cómo Elegir o Capturar tu Imagen (4 Formas)
+## 3. Cómo Abrir una Foto Compartida sin Internet ni Navegador (en Pleno Vuelo)
+
+Imagina esta situación habitual: estás en pleno vuelo conectado al **Wi-Fi satelital que solo autoriza mensajería de texto** (o incluso con el móvil en **Modo Avión**), tu compañero o familiar te envía una foto por WhatsApp o Telegram con un enlace HD (`#d=...`), pero al tocar el enlace **Android intenta abrir Google Chrome y te salta la pantalla de *"Sin conexión a internet"* o *"No se puede acceder a este sitio web"***.
+
+El router del avión bloquea la navegación web, pero hay algo revolucionario: **la fotografía completa ya ha llegado a tu teléfono**, codificada dentro de las propias letras del mensaje de texto que acabas de recibir.
+
+No necesitas que Chrome cargue ninguna página ni gastar saldo de datos. Puedes ver la fotografía original al instante siguiendo **tres pasos rápidos**:
+
+```mermaid
+flowchart TD
+    Msg["1. Tu contacto te envía una foto en WhatsApp o Telegram\n(Mensaje con enlace #d=... o dibujo + enlace)"] --> Copiar["2. Mantén pulsado el mensaje y toca 'Copiar'"]
+    Copiar --> Abrir["3. Abre la app img2asciiIM en tu móvil"]
+    Abrir --> Camino{"¿Cómo la abre la app?"}
+    Camino -->|"Detección Automática"| Auto["img2asciiIM detecta la foto copiada y la carga sola\n(o te muestra un aviso de 1 toque: '¿Abrir foto copiada?')"]
+    Camino -->|"Chip Manual"| Manual["Pulsas el chip 'Portapapeles' en la fila superior"]
+    Auto --> Listo["📸 ¡Fotografía en pantalla al instante!\n100 % OFFLINE en memoria local\nCero megabytes gastados · Cero navegador"]
+    Manual --> Listo
+```
+
+### Los 3 Pasos Rápidos para Ver la Foto Sin Conexión:
+
+1. **Copia el enlace o mensaje en tu chat:**  
+   En WhatsApp o Telegram, mantén presionado el mensaje que te acaban de enviar y toca **«Copiar»** (o copia directamente la línea del enlace web).  
+   > [!TIP]  
+   > **Copia sin preocuparte por el formato:** Puedes copiar el mensaje completo aunque incluya el dibujo en caracteres Braille/ASCII y textos escritos de tu contacto. El analizador inteligente de `img2asciiIM` localiza y aísla automáticamente los datos de la imagen sin confundirse.
+
+2. **Abre `img2asciiIM` en tu móvil:**  
+   Al abrir la app o volver a ella desde la multitarea, la aplicación examina el portapapeles en milisegundos:
+   - **Detección automática:** Si la app estaba en reposo o en la pantalla inicial limpia (*Empty State*), cargará la fotografía directamente. Si tenías otra conversión abierta, verás una notificación en pantalla preguntándote si deseas abrir la foto copiada.
+   - **Chip manual «Portapapeles»:** También puedes pulsar en cualquier momento el chip interactivo **«Portapapeles»** situado en la barra superior de origen de imagen.
+
+3. **¡La fotografía se muestra al instante sin conexión a internet!:**  
+   El motor decodifica el formato WebP en tu procesador en menos de `150 ms`. Verás la fotografía original a todo color con su nitidez completa, sin necesidad de navegador, sin gastar megabytes de datos y funcionando al 100 % en Modo Avión.
+
+---
+
+## 4. Cómo Activar que Android Abra los Enlaces Directamente en la App sin Pasar por Chrome
+
+¿Por qué al pulsar un enlace en WhatsApp o Telegram tu móvil intenta abrir Google Chrome en vez de saltar directamente a `img2asciiIM`?
+
+En versiones modernas de Android (Android 12, 13, 14, 15+), el sistema operativo aplica una política estricta de seguridad: para que una aplicación intercepte enlaces web automáticamente (*Android App Links*), el sistema comprueba la configuración de **«Abrir de forma predeterminada»**. Si esa opción aún no está confirmada en tu teléfono, Android delega cualquier enlace web en Chrome. Estando en el avión o sin cobertura, Chrome intenta cargar la página por internet, falla y te muestra la pantalla de error.
+
+### Cómo Configurarlo en 1 Minuto para Siempre:
+
+Una vez configurado este ajuste, cada vez que toques un enlace `https://laralbir.github.io/img2asciiIM/#d=...` en cualquier chat, **se abrirá directamente dentro de `img2asciiIM` sin pasar jamás por Chrome**:
+
+#### Opción A: Botón Directo desde `img2asciiIM`
+1. Abre `img2asciiIM` y pulsa la opción **«Configurar enlaces nativos»** (disponible en el menú de opciones o en el diálogo de ayuda).
+2. La app te llevará de forma automática a la pantalla de Ajustes del sistema de tu dispositivo.
+
+#### Opción B: Desde los Ajustes de Android
+1. Abre la aplicación **Ajustes** de tu teléfono Android.
+2. Entra en el apartado **Aplicaciones** (o *Gestión de aplicaciones* / *Apps*).
+3. Busca y pulsa **`img2asciiIM`** en la lista.
+4. Toca en **«Abrir de forma predeterminada»** (*Open by default*).
+5. Asegúrate de que el interruptor **«Abrir enlaces compatibles»** (*Open supported links*) esté activado (**SÍ**).
+6. Entra en **«Enlaces compatibles» / «Añadir enlace»** y comprueba que esté marcado el dominio oficial:
+   ```text
+   laralbir.github.io
+   ```
+
+> [!IMPORTANT]
+> **Ventaja definitiva:** Con este ajuste activo, ya no necesitarás ni copiar el mensaje: al pulsar el enlace en WhatsApp o Telegram en pleno vuelo, **Android saltará al instante a `img2asciiIM` y verás la foto al segundo**. Y si en algún momento no se abre solo, ¡siempre tienes la [solución de copiar y abrir con el portapapeles](#3-cómo-abrir-una-foto-compartida-sin-internet-ni-navegador-en-pleno-vuelo)!
+
+---
+
+## 5. Paso 1: Cómo Elegir o Capturar tu Imagen (5 Formas)
 
 Al abrir **`img2asciiIM`**, te recibe una pantalla completamente limpia y despejada (**Empty State**), sin fotografías de muestra ni demostraciones artificiales. Desde el primer segundo dispones de un lienzo listo con accesos directos claros para elegir tu imagen:
 
 ```mermaid
 flowchart TD
-    Paso1["Paso 1: Elige o haz tu foto (Galería, Archivos/Drive, Cámara o Compartir)"] --> Paso2["Paso 2: Elige la app de destino (WhatsApp, Telegram o Instagram)"]
+    Paso1["Paso 1: Elige o haz tu foto (Galería, Archivos/Drive, Cámara, Compartir o Portapapeles)"] --> Paso2["Paso 2: Elige la app de destino (WhatsApp, Telegram o Instagram)"]
     Paso2 --> Paso3["Paso 3: Ajusta estilo, tema Claro/Oscuro y nitidez en vivo"]
     Paso3 --> Paso4["Paso 4: Elige qué enviar (Arte ASCII/Braille y/o Enlace a foto HD)"]
     Paso4 --> Paso5["Paso 5: Pulsa Enviar o Copiar en 1 toque"]
 ```
 
-Tienes **cuatro maneras** igual de cómodas de cargar una imagen (y si abres cualquiera de ellas por error y pulsas *Atrás*, la imagen y los ajustes que ya tuvieras en pantalla se conservan intactos):
+Tienes **cinco maneras** igual de cómodas de cargar una imagen (y si abres cualquiera de ellas por error y pulsas *Atrás*, la imagen y los ajustes que ya tuvieras en pantalla se conservan intactos):
 
 ### 1. Botón «Galería»
 Abre el selector moderno de fotos de Android para elegir cualquier imagen (`JPEG`, `PNG`, `WebP` o `HEIC`) de tu teléfono o de tu fototeca integrada. No importa si tu cámara hace fotos gigantescas de **48 MP o 108 MP** ni si hiciste la foto con el móvil girado: `img2asciiIM` reduce el tamaño de forma inteligente sin agotar la batería ni la memoria y **endereza automáticamente la orientación**.
@@ -118,15 +186,21 @@ Dispara una foto al momento sin salir de `img2asciiIM`. Es perfecta durante el v
 
 *(Las capturas temporales de cámara se guardan únicamente en la caché privada de la app y se limpian automáticamente para no llenar el espacio de tu teléfono).*
 
-### 4. Desde otra app con el menú «Compartir» (la vía más rápida)
+### 4. Desde otra app con el menú «Compartir» (la vía más rápida para fotos propias)
 Si ya tienes una imagen abierta en tu app de **Galería**, en **Google Drive** o en tu gestor de archivos:
 1. Toca el botón estándar **Compartir** de Android.
 2. Elige **`img2asciiIM`** en la lista de aplicaciones.
 3. La aplicación se abrirá directamente con esa foto **ya convertida** en la vista previa, ahorrándote buscarla de nuevo.
 
+### 5. Botón y Chip «Portapapeles» (Para fotos recibidas en WhatsApp o Telegram)
+Si alguien te envió una foto convertida o un enlace `#d=...` en WhatsApp, Telegram o un correo:
+1. **Copia el mensaje o enlace en el chat**.
+2. Toca el chip **«Portapapeles»** en la fila superior de origen (o simplemente abre la app para que lo detecte de forma automática).
+3. `img2asciiIM` lee el mensaje copiado, extrae la imagen y te la muestra al instante en pantalla sin salir al navegador y sin tocar internet.
+
 ---
 
-## 4. Paso 2: Elegir la App de Destino (WhatsApp, Telegram o Instagram)
+## 6. Paso 2: Elegir la App de Destino (WhatsApp, Telegram o Instagram)
 
 Cada aplicación de mensajería tiene sus propias reglas sobre **el tipo de letra** y **el tamaño máximo permitido por mensaje**. Si envías el mismo bloque de texto sin adaptarlo, en unas apps se verá torcido y en otras se cortará por la mitad.
 
@@ -149,7 +223,7 @@ Al tocar arriba **WhatsApp**, **Telegram** o **Instagram Direct**, `img2asciiIM`
 
 ---
 
-## 5. Paso 3: Ajustar el Estilo y la Nitidez (Recetas Rápidas)
+## 7. Paso 3: Ajustar el Estilo y la Nitidez (Recetas Rápidas)
 
 Justo encima de los controles verás la **Vista Previa de Burbuja**, que te muestra en tiempo real cómo quedará el mensaje junto con el contador de **`caracteres actuales / límite máximo`** y el tamaño en **`columnas × filas`**.
 
@@ -198,7 +272,7 @@ Por eso, si envías un retrato pensado para fondo claro a alguien que usa Modo O
 
 ---
 
-## 6. Paso 4: Elegir Qué Enviar (Arte de Texto y/o Enlace a Foto HD)
+## 8. Paso 4: Elegir Qué Enviar (Arte de Texto y/o Enlace a Foto HD)
 
 Justo debajo de los controles de nitidez encontrarás la sección **Componentes del mensaje**, que te permite decidir exactamente qué quieres incluir en el chat mediante dos casillas independientes:
 
@@ -252,7 +326,7 @@ flowchart TD
 
 ---
 
-## 7. Paso 5: Enviar en 1 Toque o Copiar al Portapapeles
+## 9. Paso 5: Enviar en 1 Toque o Copiar al Portapapeles
 
 Cuando la vista previa de burbuja y los componentes seleccionados se vean a tu gusto, tienes dos acciones directas en la parte inferior:
 
@@ -281,7 +355,7 @@ Cuando la vista previa de burbuja y los componentes seleccionados se vean a tu g
 
 ---
 
-## 8. Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)
+## 10. Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)
 
 Tal vez te preguntes: *¿Cómo es posible enviar una foto dentro de un enlace web si el Wi-Fi del avión tiene bloqueada la subida de fotos y no me deja navegar por páginas web?*
 
@@ -308,18 +382,21 @@ El enlace funciona para cualquier persona y en cualquier dispositivo:
 flowchart TD
     Enlace["Tu amigo pulsa el enlace https://laralbir.github.io/img2asciiIM/#d=..."]
     Enlace --> Dispositivo{"¿Tiene instalada img2asciiIM en su Android?"}
-    Dispositivo -- "SÍ (Apertura directa)" --> Nativo["Apertura directa en img2asciiIM (App Link)\nReconstrucción en pantalla en milisegundos\n100% OFFLINE (Cero gasto de datos)"]
-    Dispositivo -- "NO (o abre en navegador)" --> Web["Abre en navegador web (Chrome, Safari, Firefox)\nVisor estático HTML5 / Canvas en docs/index.html\nDecodifica el hash en pantalla sin servidor externo"]
+    Dispositivo -- "SÍ (Apertura directa configurada)" --> Nativo["Apertura directa en img2asciiIM (App Link)\nReconstrucción en pantalla en milisegundos\n100% OFFLINE (Cero gasto de datos)"]
+    Dispositivo -- "SÍ (Pero abre en navegador o sin red)" --> OfflineChoice["Alternativa en 1 toque:\nCopiar mensaje y abrir app (Portapapeles)\n¡100% OFFLINE sin navegador!"]
+    Dispositivo -- "NO (o abre en navegador con red)" --> Web["Abre en visor web estático (Chrome, Safari)\nDecodifica el hash en pantalla sin servidor externo"]
     Web --> Banner["Banner interactivo en visor web:\n'📱 Abrir en la app img2asciiIM'"]
     Banner --> Nativo
+    OfflineChoice --> Nativo
 ```
 
 #### 1. Si tu contacto tiene `img2asciiIM` instalada en Android:
 - **Apertura Directa por App Link:** Android detecta automáticamente el enlace (`Intent.ACTION_VIEW`), abre la app de inmediato, extrae los datos y **dibuja la fotografía original en alta definición a todo color**, sin necesidad de internet y sin gastar ni un solo megabyte de datos.
-- **¿Qué pasa si el enlace se abrió dentro del navegador de Telegram o Chrome?**
-  No te preocupes: en la parte superior del visor web aparecerá un botón destacado:
-  **«📱 Abrir en la app img2asciiIM»**.
-  Al tocarlo, el navegador invoca el esquema directo `img2asciiim://view?d=...` y la imagen salta al instante dentro de la aplicación nativa instalada.
+- **¿Qué pasa si el enlace se abrió dentro del navegador de Telegram o Chrome y da error de conexión?**
+  No te preocupes en absoluto:
+  1. Si Chrome llegó a abrir la página, pulsa el botón superior **«📱 Abrir en la app img2asciiIM»** para pasarla a la app nativa.
+  2. Si estás en Modo Avión o el Wi-Fi satelital bloquea Chrome, aplica el flujo infalible: **copia el mensaje en el chat y abre `img2asciiIM`** (la app lo detectará automáticamente o tocando el chip **«Portapapeles»**; ver [Sección 3](#3-cómo-abrir-una-foto-compartida-sin-internet-ni-navegador-en-pleno-vuelo)).
+  3. Para que la próxima vez Android no intente abrir Chrome, activa los enlaces nativos en Ajustes (ver [Sección 4](#4-cómo-activar-que-android-abra-los-enlaces-directamente-en-la-app-sin-pasar-por-chrome)).
 
 #### 2. Si tu contacto no tiene la app instalada (o usa iPhone, iPad o PC):
 - El enlace se abre en su navegador web habitual (Safari, Chrome, Edge, Firefox).
@@ -327,7 +404,7 @@ flowchart TD
 
 ---
 
-## 9. Comprobación y Actualizaciones In-App desde GitHub Releases
+## 11. Comprobación y Actualizaciones In-App desde GitHub Releases
 
 `img2asciiIM` es un proyecto de software libre y privado que no depende de los servicios privativos de **Google Play Store**. Para que siempre disfrutes de las últimas mejoras y correcciones sin complicaciones, la aplicación incluye su propio **sistema nativo de comprobación y actualización in-app**:
 
@@ -355,7 +432,19 @@ Cada actualización oficial de `img2asciiIM` se compila y firma automáticamente
 
 ---
 
-## 10. Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos
+## 12. Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos
+
+### «¿Qué hago si al tocar un enlace en WhatsApp o Telegram se abre Chrome y da error de conexión en el avión?»
+**Causa:** Android intenta abrir los enlaces web `https://...` en Chrome de forma predeterminada, pero el Wi-Fi satelital del avión bloquea la navegación web ordinaria.  
+**Solución inmediata (¡en 2 segundos sin internet!):** Mantén pulsado el mensaje o enlace en el chat, toca **«Copiar»** y abre **`img2asciiIM`**. La app detectará la foto en tu portapapeles o solo tendrás que pulsar el chip **«Portapapeles»** para verla al instante 100 % offline.  
+**Solución definitiva:** Activa la apertura nativa en los Ajustes de Android (ver [Cómo Activar que Android Abra los Enlaces Directamente en la App sin Pasar por Chrome](#4-cómo-activar-que-android-abra-los-enlaces-directamente-en-la-app-sin-pasar-por-chrome)) para que los enlaces se abran siempre directamente en la app sin pasar por Chrome.
+
+---
+
+### «Al usar el botón o chip "Portapapeles", ¿es privado? ¿Guarda `img2asciiIM` mis mensajes o textos privados?»
+**Privacidad absoluta y efímera.** `img2asciiIM` analiza el portapapeles única y exclusivamente para buscar si contiene un enlace o payload fotográfico de la app (`#d=...`). Si copiaste un mensaje que incluía texto de conversación, comentarios o datos personales, la aplicación **jamás guarda, no registra ni transmite nada a ningún servidor**. Todo el procesado ocurre en la memoria volátil de tu propio teléfono y se destruye al cerrar la app.
+
+---
 
 ### «¿El enlace de foto HD gasta datos de mi bono satelital o del Wi-Fi del avión?»
 **Cero datos extra.** Como la foto va codificada en texto dentro del propio enlace, viaja por el canal de texto plano autorizado por la aerolínea. Al enviarlo no se conecta a servidores multimedia, y cuando el destinatario tiene la app instalada, la imagen se reconstruye en su memoria sin descargar nada de internet.

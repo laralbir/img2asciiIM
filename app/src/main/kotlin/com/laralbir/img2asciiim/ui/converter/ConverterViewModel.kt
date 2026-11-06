@@ -63,6 +63,7 @@ class ConverterViewModel(
   private var triggerGeneration: Long = 0L
   private val pipelineTrigger = MutableStateFlow<PipelineTrigger?>(null)
   private var decodeJob: Job? = null
+  private var lastCheckedClipboardText: String? = null
 
   init {
     viewModelScope.launch {
@@ -121,6 +122,107 @@ class ConverterViewModel(
       origin = origin,
       defaultLabel = DEFAULT_INCOMING_SHARE_LABEL,
     )
+  }
+
+  fun onLoadFromClipboard() {
+    val clipboardText = messageShareGateway.getClipboardText()?.trim()
+    if (clipboardText.isNullOrBlank()) {
+      emitEffect(ConverterUiEffect.ShowSnackbar("El portapapeles está vacío."))
+      return
+    }
+    if (!containsDeepLink(clipboardText)) {
+      emitEffect(ConverterUiEffect.ShowSnackbar("No se encontró ningún enlace de imagen válido en el portapapeles."))
+      return
+    }
+
+    lastCheckedClipboardText = clipboardText
+    decodeJob?.cancel()
+    decodeJob = viewModelScope.launch {
+      _uiState.update { state ->
+        state.copy(
+          isLoadingImage = true,
+          errorBannerMessage = null,
+        )
+      }
+      val outcome = withContext(ioDispatcher) {
+        deepLinkCodec.decodeFromDeepLink(clipboardText)
+      }
+      ensureActive()
+      when (outcome) {
+        is DomainResult.Success -> {
+          applyDecodeOutcome(
+            outcome = outcome,
+            origin = ImageSourceOrigin.CLIPBOARD,
+            defaultLabel = DEFAULT_CLIPBOARD_LABEL,
+          )
+        }
+        is DomainResult.Failure -> {
+          val errorMessage = "El enlace del portapapeles no contiene una imagen válida o está dañado."
+          _uiState.update { state ->
+            state.copy(
+              isLoadingImage = false,
+              errorBannerMessage = errorMessage,
+            )
+          }
+          emitEffect(ConverterUiEffect.ShowSnackbar(errorMessage))
+        }
+      }
+    }
+  }
+
+  fun checkClipboardOnResume() {
+    val clipboardText = messageShareGateway.getClipboardText()?.trim() ?: return
+    if (clipboardText.isBlank() || clipboardText == lastCheckedClipboardText) return
+    if (!containsDeepLink(clipboardText)) return
+
+    lastCheckedClipboardText = clipboardText
+
+    if (currentDecodedImage == null) {
+      decodeJob?.cancel()
+      decodeJob = viewModelScope.launch {
+        _uiState.update { state ->
+          state.copy(
+            isLoadingImage = true,
+            errorBannerMessage = null,
+          )
+        }
+        val outcome = withContext(ioDispatcher) {
+          deepLinkCodec.decodeFromDeepLink(clipboardText)
+        }
+        ensureActive()
+        if (outcome is DomainResult.Success) {
+          applyDecodeOutcome(
+            outcome = outcome,
+            origin = ImageSourceOrigin.CLIPBOARD,
+            defaultLabel = DEFAULT_CLIPBOARD_LABEL,
+          )
+        } else {
+          _uiState.update { it.copy(isLoadingImage = false) }
+        }
+      }
+    } else {
+      emitEffect(
+        ConverterUiEffect.ShowSnackbar(
+          message = "Enlace de imagen detectado en el portapapeles. ¿Deseas cargarlo?",
+          actionLabel = "Cargar",
+          onAction = { onLoadFromClipboard() },
+        ),
+      )
+    }
+  }
+
+  internal fun containsDeepLink(text: String): Boolean {
+    val trimmed = text.trim()
+    return trimmed.contains("#d=") ||
+      trimmed.contains("#data=") ||
+      trimmed.contains("?d=") ||
+      trimmed.contains("&d=") ||
+      trimmed.contains("?data=") ||
+      trimmed.contains("&data=") ||
+      trimmed.contains("img2asciiim://") ||
+      trimmed.contains("img2ascii://") ||
+      trimmed.startsWith("UklGR") ||
+      trimmed.startsWith("data:image/")
   }
 
   fun onLoadDemoSample() {
@@ -368,7 +470,11 @@ class ConverterViewModel(
     defaultLabel: String,
   ) {
     currentDecodedImage = decoded
-    val resolvedLabel = decoded.label?.takeIf { it.isNotBlank() } ?: defaultLabel
+    val resolvedLabel = if (origin == ImageSourceOrigin.CLIPBOARD) {
+      defaultLabel
+    } else {
+      decoded.label?.takeIf { it.isNotBlank() } ?: defaultLabel
+    }
     val dimensionsLabel = formatDimensions(decoded.originalWidth, decoded.originalHeight)
     val activeParams = _uiState.value.params
 
@@ -461,6 +567,7 @@ class ConverterViewModel(
     const val DEFAULT_DOCUMENT_LABEL: String = "Archivo / Google Drive"
     const val DEFAULT_CAMERA_LABEL: String = "Foto de cámara"
     const val DEFAULT_INCOMING_SHARE_LABEL: String = "Imagen recibida"
+    const val DEFAULT_CLIPBOARD_LABEL: String = "Enlace del portapapeles"
 
     const val MIN_BRIGHTNESS: Float = -1.0f
     const val MAX_BRIGHTNESS: Float = 1.0f

@@ -17,6 +17,8 @@
     <string name="source_documents_desc">Abrir selector de archivos o Google Drive</string>
     <string name="source_camera">Cámara</string>
     <string name="source_camera_desc">Tomar una foto con la cámara</string>
+    <string name="source_clipboard">Portapapeles</string>
+    <string name="source_clipboard_desc">Cargar imagen desde enlace en el portapapeles</string>
     <string name="source_demo">Muestra</string>
     <string name="source_demo_desc">Cargar imagen de muestra a bordo</string>
 
@@ -38,4 +40,8 @@
     <string name="btn_copy">Copiar</string>
     <string name="btn_share">Enviar a %1$s</string>
     <string name="dismiss_banner">Cerrar</string>
+
+    <!-- App Links Settings -->
+    <string name="action_open_app_links_settings">Configurar enlaces en Ajustes</string>
+    <string name="action_open_app_links_settings_desc">Configurar enlaces predeterminados en Ajustes del sistema</string>
 </resources>

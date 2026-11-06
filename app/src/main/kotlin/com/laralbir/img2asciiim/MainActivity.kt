@@ -57,6 +57,8 @@ class MainActivity : ComponentActivity() {
             if (pending != null) {
               pendingViewIntent = null
               processIncomingIntent(pending, vm)
+            } else {
+              vm.checkClipboardOnResume()
             }
           }
 
@@ -71,6 +73,18 @@ class MainActivity : ComponentActivity() {
     }
 
     handleIncomingIntent(intent)
+  }
+
+  override fun onResume() {
+    super.onResume()
+    activeViewModel?.checkClipboardOnResume()
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus) {
+      activeViewModel?.checkClipboardOnResume()
+    }
   }
 
   override fun onNewIntent(intent: Intent) {

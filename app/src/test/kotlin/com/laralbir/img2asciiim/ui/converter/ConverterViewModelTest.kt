@@ -782,6 +782,237 @@ class ConverterViewModelTest {
     assertTrue(viewModel.uiState.value.includeAsciiArt)
     assertFalse(viewModel.uiState.value.attachDeepLink)
   }
+
+  @Test
+  fun onLoadFromClipboard_whenClipboardEmpty_emitsInformativeSnackbar() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    shareGateway.clipboardText = ""
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.onLoadFromClipboard()
+      val snackbar = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
+      assertEquals("El portapapeles está vacío.", snackbar.message)
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  @Test
+  fun onLoadFromClipboard_whenNoDeepLinkInClipboard_emitsInformativeSnackbar() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    shareGateway.clipboardText = "Hola este es un texto cualquiera"
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.onLoadFromClipboard()
+      val snackbar = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
+      assertEquals("No se encontró ningún enlace de imagen válido en el portapapeles.", snackbar.message)
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  @Test
+  fun onLoadFromClipboard_whenCorruptedPayload_emitsErrorMessage() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
+        return DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)
+      }
+    }
+    shareGateway.clipboardText = "https://laralbir.github.io/img2asciiIM/#d=corrupted"
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.onLoadFromClipboard()
+      advanceUntilIdle()
+      val snackbar = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
+      assertTrue(snackbar.message.contains("portapapeles"))
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  @Test
+  fun onLoadFromClipboard_whenValidDeepLink_decodesAndSetsClipboardOrigin() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeDecoded = createGradientDecodedImage(width = 64, height = 48, label = null)
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
+        return DomainResult.Success(fakeDecoded)
+      }
+    }
+    shareGateway.clipboardText = "https://laralbir.github.io/img2asciiIM/#d=valid_link"
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.onLoadFromClipboard()
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(ImageSourceOrigin.CLIPBOARD, state.sourceOrigin)
+    assertEquals("Enlace del portapapeles", state.sourceLabel)
+    assertEquals("64 × 48 px", state.sourceDimensionsLabel)
+    assertNotNull(state.conversionResult)
+  }
+
+  @Test
+  fun onLoadFromClipboard_whenEmbeddedInSurroundingMessage_decodesSuccessfully() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeDecoded = createGradientDecodedImage(width = 40, height = 40, label = null)
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
+        return DomainResult.Success(fakeDecoded)
+      }
+    }
+    shareGateway.clipboardText = "Mensaje previo con arte:\n```..::```\nhttps://laralbir.github.io/img2asciiIM/#d=embedded_data\n¡Mira qué foto!"
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = false,
+    )
+    advanceUntilIdle()
+
+    viewModel.onLoadFromClipboard()
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(ImageSourceOrigin.CLIPBOARD, state.sourceOrigin)
+    assertEquals("Enlace del portapapeles", state.sourceLabel)
+    assertNotNull(state.conversionResult)
+  }
+
+  @Test
+  fun checkClipboardOnResume_whenInitialEmptyStateAndLinkInClipboard_loadsAutomatically() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeDecoded = createGradientDecodedImage(width = 50, height = 50, label = null)
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
+        return DomainResult.Success(fakeDecoded)
+      }
+    }
+    shareGateway.clipboardText = "https://laralbir.github.io/img2asciiIM/#d=cold_start_link"
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = false,
+    )
+    advanceUntilIdle()
+
+    viewModel.checkClipboardOnResume()
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(ImageSourceOrigin.CLIPBOARD, state.sourceOrigin)
+    assertEquals("Enlace del portapapeles", state.sourceLabel)
+    assertNotNull(state.conversionResult)
+  }
+
+  @Test
+  fun checkClipboardOnResume_whenImageAlreadyLoaded_promptsUserAndLoadsOnClick() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeDecoded = createGradientDecodedImage(width = 60, height = 60, label = null)
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
+        return DomainResult.Success(fakeDecoded)
+      }
+    }
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+    assertEquals(ImageSourceOrigin.DEMO, viewModel.uiState.value.sourceOrigin)
+
+    shareGateway.clipboardText = "https://laralbir.github.io/img2asciiIM/#d=resume_prompt_link"
+
+    viewModel.effects.test {
+      viewModel.checkClipboardOnResume()
+      val promptEffect = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
+      assertTrue(promptEffect.message.contains("portapapeles"))
+      assertEquals("Cargar", promptEffect.actionLabel)
+
+      // Clicking action executes loading
+      promptEffect.onAction?.invoke()
+      advanceUntilIdle()
+
+      val state = viewModel.uiState.value
+      assertEquals(ImageSourceOrigin.CLIPBOARD, state.sourceOrigin)
+      assertEquals("Enlace del portapapeles", state.sourceLabel)
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  @Test
+  fun checkClipboardOnResume_idempotency_doesNotRePromptSameLink() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    shareGateway.clipboardText = "https://laralbir.github.io/img2asciiIM/#d=idempotent_link"
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.checkClipboardOnResume()
+      val promptEffect = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
+      assertEquals("Cargar", promptEffect.actionLabel)
+
+      // Second resume with same clipboard text should not emit again
+      viewModel.checkClipboardOnResume()
+      advanceUntilIdle()
+      expectNoEvents()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
 }
 
 private class FakeImageSourceRepository(
@@ -815,10 +1046,17 @@ private class FakeMessageShareGateway : MessageShareGateway {
     packageName = "com.whatsapp",
     copiedToClipboard = false,
   )
+  var clipboardContent: String? = null
+  var clipboardText: String?
+    @JvmName("getFakeClipboardTextProp") get() = clipboardContent ?: lastCopiedText
+    @JvmName("setFakeClipboardTextProp") set(value) { clipboardContent = value }
 
   override fun copyToClipboard(text: String) {
     lastCopiedText = text
+    clipboardContent = text
   }
+
+  override fun getClipboardText(): String? = clipboardContent ?: lastCopiedText
 
   override fun shareToPlatform(text: String, preset: ImPlatformPreset): ShareOutcome {
     lastSharedText = text
