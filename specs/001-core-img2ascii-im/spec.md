@@ -3,7 +3,7 @@
 | Campo | Valor |
 | :--- | :--- |
 | **ID de Especificación** | `001-core-img2ascii-im` |
-| **Estado** | `BORRADOR — Pendiente de validación del usuario antes de iniciar Ciclo TDD 1` |
+| **Estado** | `APROBADO — Validado por el usuario (2026-11-06)` |
 | **Autor(es)** | `sdd-architect` |
 | **Fecha de Creación** | `2026-11-06` |
 | **Última Actualización** | `2026-11-06` |
@@ -11,8 +11,8 @@
 | **Repositorio** | `https://github.com/laralbir/img2asciiIM` |
 | **Dependencias Previas** | Ninguna (Especificación fundacional del MVP) |
 
-> **Bloqueo de Gobernanza SDD → TDD (`AGENTS.md`):**
-> Esta especificación se encuentra en estado **`BORRADOR`**. Queda prohibido implementar código de producción de las funcionalidades aquí definidas hasta que el usuario valide las **Decisiones de Diseño Abiertas (Sección 8)**, el estado pase a **`APROBADO`** y cada ciclo comience con un test automatizado en estado **`RED`**.
+> **Gobernanza SDD → TDD (`AGENTS.md`):**
+> Esta especificación ha sido revisada y **aprobada por el usuario (`APROBADO`)** con la **Opción A** seleccionada en todas las Decisiones de Diseño (`DD-01`..`DD-05`). Queda habilitada la ejecución de los Vertical Slices TDD en [`tasks.md`](tasks.md) bajo la regla inquebrantable de comenzar siempre cada tarea con un test automatizado fallando en estado **`RED`**.
 
 ---
 
@@ -49,6 +49,7 @@ Los conversores de imagen a ASCII existentes fracasan en este contexto por cuatr
 | **HU-03** | `P0` | **Como** emisor del mensaje, **quiero** alternar entre Braille Unicode, ASCII clásico y Bloques, ajustando ancho, brillo, contraste, inversión (tema claro/oscuro) y *dithering* sobre una vista previa realista de burbuja, **para** garantizar que la imagen sea reconocible en el móvil del destinatario. | Legibilidad máxima en pantallas verticales |
 | **HU-04** | `P0` | **Como** usuario de WhatsApp, Telegram o Instagram Direct, **quiero** elegir el perfil de mi app de destino, **para** que el formato tipográfico y la longitud del mensaje respeten automáticamente sus reglas (`65.536`, `4.096` o `1.000` caracteres, con o sin ```` ``` ````). | Cero mensajes truncados o deformados |
 | **HU-05** | `P0` | **Como** pasajero conectado solo al plan de mensajería del avión, **quiero** enviar el texto directamente a la app elegida o copiarlo en 1 toque sin requerir internet para la conversión, **para** transmitir información visual cuando el envío de fotos está bloqueado. | Comunicación visual sobre canal de solo texto |
+| **HU-06** | `P0` | **Como** usuario de Android moderno (incluyendo Pixel Launcher con iconos temáticos y tema claro/oscuro), **quiero** que `img2asciiIM` cuente con un icono adaptativo y monocromo propio, imágenes de lanzamiento (*launch/branding*) y una *Splash Screen* nativa instantánea sin pantallas en blanco ni demoras artificiales, **para** percibir una experiencia pulida desde el primer fotograma. | Identidad visual nativa y arranque instantáneo |
 
 ---
 
@@ -203,6 +204,49 @@ La pantalla principal **debe** mostrar una vista previa fiel del mensaje e integ
 
 ---
 
+### RF-05: Identidad Visual Nativa — Icono Adaptativo, Imágenes de Launch y Splash Screen
+
+La aplicación **debe** contar con una identidad visual propia, coherente con [`docs/assets/banner.png`](../../docs/assets/banner.png) y 100% alineada con las especificaciones modernas de Android (API 26–37), reemplazando por completo cualquier recurso genérico del template de proyecto:
+
+1. **Icono Adaptativo y Temático (`@mipmap/ic_launcher` y `@mipmap/ic_launcher_round` en `mipmap-anydpi-v26`):**
+   - **Geometría y Zona Segura:** Lienzo de `108dp × 108dp` respetando estrictamente la **zona segura central de `66dp × 66dp`** (margen perimetral de `21dp` por lado para evitar recortes bajo máscaras circulares, *squircle*, lágrima o redondeadas de distintos fabricantes OEM).
+   - **Tres Capas Vectoriales/Gráficas Dedicadas:**
+     - `<background>` (`@drawable/ic_launcher_background`): Superficie oscura técnica corporativa con acento sutil de rejilla.
+     - `<foreground>` (`@drawable/ic_launcher_foreground`): Glifo principal simbolizando la transformación de imagen/vuelo en una matriz nítida de puntos ASCII/Braille dentro de una burbuja de mensajería instantánea.
+     - **`<monochrome>`** (`@drawable/ic_launcher_monochrome`): Silueta vectorial monocroma de un único canal con transparencia limpia para soporte nativo de **Themed Icons / Material You en Android 13+ (API 33+)**.
+   - **Fallbacks Rasterizados `.webp`:** Iconos `ic_launcher.webp` e `ic_launcher_round.webp` en `mipmap-mdpi` (`48×48 px`), `mipmap-hdpi` (`72×72 px`), `mipmap-xhdpi` (`96×96 px`), `mipmap-xxhdpi` (`144×144 px`) y `mipmap-xxxhdpi` (`192×192 px`) regenerados a partir del nuevo arte maestro (eliminando el androide verde genérico del template).
+
+2. **Splash Screen Nativa Instantánea (`androidx.core:core-splashscreen`, API 26–37):**
+   - **Integración Oficial Cero-Demora:** Uso exclusivo de la API `SplashScreen` de Jetpack invocando `installSplashScreen()` en `MainActivity.onCreate()` **antes** de `super.onCreate(savedInstanceState)`, seguido inmediatamente de `enableEdgeToEdge()`. **Queda prohibido** crear actividades intermedias (`SplashActivity`) o introducir esperas artificiales (`delay()`, `Thread.sleep()`, bloqueos innecesarios en `setKeepOnScreenCondition`).
+   - **Tema de Arranque `Theme.Img2asciiIM.Starting` (`parent="Theme.SplashScreen"`):** Definido en `res/values/themes.xml`, `res/values-night/themes.xml` y `res/values-v31/themes.xml`, configurando:
+     - `windowSplashScreenBackground`: Color de fondo adaptado a modo claro y modo oscuro corporativo (evitando destellos blancos al abrir la app de noche o en cabina de avión a oscuras).
+     - `windowSplashScreenAnimatedIcon`: `@drawable/ic_splash_logo` (`VectorDrawable` nítido o `AnimatedVectorDrawable` `≤ 300 ms` según **DD-05**, inscrito estrictamente dentro de la **zona segura central de `160dp × 160dp`** sobre un lienzo de `240dp × 240dp`).
+     - `windowSplashScreenBrandingImage` (Android 12+ / API 31+): `@drawable/ic_splash_branding` (`200dp × 80dp`, marca tipográfica monoespaciada limpia `img2asciiIM`).
+     - `postSplashScreenTheme`: `@style/Theme.Img2asciiIM`, transfiriendo atómicamente al tema principal `Edge-to-Edge` de la aplicación tras el primer fotograma.
+
+3. **Imágenes Maestras de Launch y Distribución (`docs/assets/` y tienda):**
+   - **Icono Maestro de Alta Resolución (`512 × 512 px`):** `docs/assets/icon-512.png` (PNG RGBA de alta fidelidad listo para ficha de tienda y distribución).
+   - **Gráfico Promocional de Lanzamiento / *Feature Graphic* (`1024 × 500 px`):** `docs/assets/launch-feature-1024x500.png` (composición visual coherente con `docs/assets/banner.png` y la estética de la aplicación, sin texto crítico en los márgenes de recorte).
+
+#### Criterios de Aceptación de `RF-05`
+
+- **CA-05.1 — Icono adaptativo completo con capa `<monochrome>` y densidades `mipmap-*` sin activos del template**
+  - **Given:** Los recursos empaquetados de `img2asciiIM` instalados en cualquier versión soportada de Android (API 26–37, incluyendo launchers con *Themed Icons* activados en Android 13+).
+  - **When:** El sistema resuelve `@mipmap/ic_launcher` y `@mipmap/ic_launcher_round`.
+  - **Then:** Ambos descriptores XML en `mipmap-anydpi-v26` declaran `<background>`, `<foreground>` y `<monochrome>` con lienzo `108dp × 108dp` y contenido principal en la zona segura `66dp × 66dp`, y todas las variantes `mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}` contienen archivos `.webp` válidos con dimensiones exactas (`48`, `72`, `96`, `144`, `192` px) cuyos hashes difieren de los recursos genéricos del template.
+
+- **CA-05.2 — Arranque en frío con `SplashScreen` nativa y transición inmediata a `Theme.Img2asciiIM` + `Edge-to-Edge`**
+  - **Given:** La aplicación se inicia en frío (*cold start*) tanto desde el launcher como mediante un `Intent.ACTION_SEND` con tema del sistema en modo claro u oscuro.
+  - **When:** Se ejecuta `MainActivity.onCreate()`.
+  - **Then:** El sistema muestra inmediatamente `Theme.Img2asciiIM.Starting` con `windowSplashScreenBackground` e `ic_splash_logo` (más `ic_splash_branding` en Android 12+), invoca `installSplashScreen()` antes de `super.onCreate()` sin `SplashActivity` intermedia ni `delay()` artificial, y conmuta a `@style/Theme.Img2asciiIM` con `enableEdgeToEdge()` tan pronto como el primer fotograma de Compose está listo.
+
+- **CA-05.3 — Activos maestros de launch (`512×512` y `1024×500`) validados en dimensiones y formato**
+  - **Given:** El directorio documental y de publicación `docs/assets/` del proyecto.
+  - **When:** Se ejecuta la validación automatizada de activos de marca.
+  - **Then:** Existen `docs/assets/icon-512.png` (PNG válido de exactamente `512 × 512 px`) y `docs/assets/launch-feature-1024x500.png` (PNG válido de exactamente `1024 × 500 px`), alineados estéticamente con `docs/assets/banner.png` y los vectores del launcher.
+
+---
+
 ## 4. Restricciones de Dominio e Invariantes Técnicos
 
 1. **Estándar de Bits Braille Unicode (ISO/TR 11548-1 / Unicode `U+2800..U+28FF`):**
@@ -245,6 +289,7 @@ La pantalla principal **debe** mostrar una vista previa fiel del mensaje e integ
 | **CB-04** | **Archivo corrupto, de 0 bytes o MIME engañoso (no es imagen válida)** | El decodificador detecta cabeceras inválidas (`outWidth <= 0` / `DecodeException`), no crashea y emite `DecodeError.InvalidOrCorruptedImage`. | `data/` |
 | **CB-05** | **Eliminación de espacios finales (*trailing spaces*) por clientes IM** | En modos `ASCII_CLASSIC` y `UNICODE_BLOCKS` sobre WhatsApp/Telegram el bloque ```` ``` ```` preserva el espaciado; además, las líneas derechas vacías pueden recortarse sin afectar la alineación izquierda, y en `BRAILLE_UNICODE` `U+2800` tiene categoría Unicode `So` (*Symbol, Other*), por lo que ningún `trim()` estándar lo elimina. | `domain/` |
 | **CB-06** | **Rotación de pantalla o cambio de tema del sistema Android durante la edición** | `ConverterViewModel` preserva el `PixelGrid` ya decodificado y todos los parámetros del usuario en su `StateFlow`, evitando re-decodificar la `Uri` o perder ajustes. | `ui/` |
+| **CB-07** | **Compatibilidad de `SplashScreen` y `<monochrome>` en versiones Android anteriores (API 26–32)** | `androidx.core:core-splashscreen` retroporta fondo e icono central en API 26–30 mientras `windowSplashScreenBrandingImage` se aísla limpiamente en `values-v31/themes.xml` (API 31+), y la etiqueta `<monochrome>` en `mipmap-anydpi-v26` es ignorada de forma segura por el sistema en API < 33 sin errores de recursos ni crashes. | `res/` + `ui/` |
 
 ---
 
@@ -258,41 +303,47 @@ La pantalla principal **debe** mostrar una vista previa fiel del mensaje e integ
 | `CA-01.1..01.4`, `RNF-02`, `RNF-03`, `CB-02`, `CB-04` | `data` | Robolectric (`Slice 4`) | `AndroidImageSourceDecoderTest`, `ExifNormalizerTest`, `ManifestSecurityTest` |
 | `CA-01.5`, `CA-02.5`, `CB-06` | `ui` | JVM + Turbine (`Slice 5`) | `ConverterViewModelTest` |
 | `CA-04.1..04.3`, `RNF-05` | `ui` + `data` | Robolectric Compose UI (`Slice 6`) | `ConverterScreenTest`, `ImShareLauncherTest` |
-| `RNF-01`, `RNF-02`, `RNF-04` | `e2e` | Instrumentado USB/Wi-Fi (`Slice 7`) | `EndToEndConversionAndroidTest` |
+| `RNF-01`, `RNF-02`, `RNF-04`, `CA-05.2` | `e2e` | Instrumentado USB/Wi-Fi (`Slice 7`) | `EndToEndConversionAndroidTest` (incluyendo chequeo E2E de *cold start*) |
+| `CA-05.1`, `CA-05.2`, `CA-05.3`, `CB-07` | `res` + `ui` | Robolectric + Assets (`Slice 8`) | `BrandAssetsAndSplashTest` (`BrandAssetsAndSplashRobolectricTest` + chequeo de arranque) |
 
 ---
 
-## 8. Decisiones de Diseño Abiertas (Para Confirmar con el Usuario)
+## 8. Decisiones de Diseño Validadas por el Usuario
 
-> **Acción requerida del usuario:** Por favor, revisa y confirma qué opción prefieres en cada uno de los siguientes 4 puntos antes de autorizar el paso a estado `APROBADO` y arrancar el **Ciclo TDD 1**.
+> **Estado de Decisiones:** Confirmadas por el usuario (`2026-11-06`), adoptando la **Opción A** en `DD-01`..`DD-05`.
 
 ### DD-01: Integración de Cámara en el MVP (`TakePicture` del Sistema vs. `CameraX` Integrado)
 - **Opción A (Recomendada para MVP):** Usar el contrato oficial `ActivityResultContracts.TakePicture()` junto con `FileProvider` en caché privada.
   - *Ventajas:* **No requiere declarar el permiso `android.permission.CAMERA`** en el manifiesto, aprovecha el procesado computacional (HDR/modo noche) de la cámara nativa del teléfono y mantiene el APK ligero y fiable.
 - **Opción B:** Integrar un visor propio con **`CameraX`** dentro de la app (permitiendo incluso previsualizar el filtro ASCII/Braille en vivo antes de disparar).
   - *Coste:* Requiere solicitar permiso `CAMERA` en tiempo de ejecución y añade dependencias de ciclo de vida de cámara.
-- **Estado:** `[ ] Pendiente de decisión del usuario`
+- **Estado:** `[x] Aprobada: Opción A`
 
 ### DD-02: Política al Superar el Límite de Caracteres en Telegram (`4.096`) o Instagram Direct (`1.000`)
 - **Opción A (Recomendada para MVP):** **Auto-escalado preventivo a 1 único mensaje garantizado**. Si las dimensiones solicitadas superan `1.000` (Instagram) o `4.096` (Telegram) caracteres, el motor reduce automáticamente el número efectivo de columnas/filas hasta el máximo exacto que cabe íntegro en **un solo mensaje**, evitando que la imagen se parta en varias burbujas separadas por cabeceras o timestamps del chat.
 - **Opción B:** Ofrecer ambos modos: *Ajustar a 1 mensaje* (por defecto) + un interruptor opcional *"Dividir en varios mensajes (Parte 1/N)"* con botones secuenciales de copia/envío para imágenes verticales largas en Telegram/Instagram.
-- **Estado:** `[ ] Pendiente de decisión del usuario`
+- **Estado:** `[x] Aprobada: Opción A`
 
 ### DD-03: Modos de Arte en el MVP (Monocromo Puro vs. Mosaico de Emojis / ANSI)
 - **Opción A (Recomendada para MVP):** **Solo modos monocromos de alta precisión** (`BRAILLE_UNICODE`, `ASCII_CLASSIC`, `UNICODE_BLOCKS`). Nota: WhatsApp, Telegram (en burbujas móviles normales) e Instagram Direct no interpretan códigos de color ANSI (`\u001B[31m`), y los emojis de cuadros de colores (`🟥🟦🟩`) ocupan pares sustitutos UTF-16 (2 chars por píxel, agotando Instagram DM en apenas ~20×20 píxeles).
 - **Opción B:** Añadir un cuarto modo opcional **Mosaico Emoji de Color (`🟥🟧🟨🟩🟦🟪🟫⬛⬜`)** pensado para iconos pequeños o banderas en WhatsApp/Telegram.
-- **Estado:** `[ ] Pendiente de decisión del usuario`
+- **Estado:** `[x] Aprobada: Opción A`
 
 ### DD-04: Resolución de Variantes Oficiales de Apps de Mensajería (ej. WhatsApp Business)
 - **Opción A (Recomendada):** Cadena de resolución inteligente: probar primero el paquete principal (`com.whatsapp`, `org.telegram.messenger`, `com.instagram.android`); si no está instalado, comprobar variantes oficiales conocidas (`com.whatsapp.w4b` para WhatsApp Business; `org.thunderdog.challegram` / `org.telegram.messenger.web` para Telegram); y si ninguna está instalada, abrir el Share Sheet estándar (`Intent.createChooser`).
 - **Opción B:** Comprobar únicamente los tres nombres de paquete canónicos y pasar directamente al Share Sheet si no existen.
-- **Estado:** `[ ] Pendiente de decisión del usuario`
+- **Estado:** `[x] Aprobada: Opción A`
+
+### DD-05: Estilo Visual del Icono y Animación de Entrada en Splash Screen
+- **Opción A (Recomendada):** Icono vectorial minimalista oscuro (`#0D1117`, coherente con `docs/assets/banner.png`) con glifo luminoso esmeralda/cian combinando avión/imagen transformándose en matriz de puntos Braille/ASCII dentro de una burbuja IM, acompañado en la Splash Screen por una **animación vectorial sutil de aparición (`AnimatedVectorDrawable` `≤ 300 ms`)** que **jamás bloquea ni retrasa** la carga del contenido + `windowSplashScreenBrandingImage` monoespaciada en Android 12+.
+- **Opción B:** Mismo diseño de icono adaptativo/monocromo e imágenes de launch, pero con **Splash Screen 100% estática** (`VectorDrawable` fijo sin animación de entrada ni imagen inferior de *branding*).
+- **Estado:** `[x] Aprobada: Opción A`
 
 ---
 
 ## 9. Registro de Aprobación (*Sign-off*)
 
-- [x] Todos los requisitos (`RF-01`..`RF-04`, `RNF-01`..`RNF-06`) cuentan con criterios **Given / When / Then** deterministas y trazables.
+- [x] Todos los requisitos (`RF-01`..`RF-05`, `RNF-01`..`RNF-06`) cuentan con criterios **Given / When / Then** deterministas y trazables.
 - [x] El plan arquitectónico ([`plan.md`](plan.md)) y la hoja de ruta TDD ([`tasks.md`](tasks.md)) están alineados con esta especificación.
-- [ ] **Decisiones Abiertas (`DD-01`..`DD-04`) confirmadas por el usuario.**
-- [ ] **Estado cambiado a `APROBADO` para habilitar el Ciclo TDD 1.**
+- [x] **Decisiones Abiertas (`DD-01`..`DD-05`) confirmadas por el usuario (`Opción A` en todas).**
+- [x] **Estado cambiado a `APROBADO` para habilitar el Ciclo TDD 1 (`2026-11-06`).**

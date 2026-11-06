@@ -22,8 +22,8 @@ flowchart TD
         SH_IN["Share Sheet Entrante (ACTION_SEND image/*)"]
     end
 
-    subgraph UI["Capa UI (com.laralbir.img2asciiim.ui)"]
-        ACT["MainActivity (Edge-to-Edge + Intents)"]
+    subgraph UI["Capa UI (com.laralbir.img2asciiim.ui + res)"]
+        ACT["MainActivity (SplashScreen + Edge-to-Edge + Intents)"]
         SCR["ConverterScreen (Compose Material 3)"]
         BUB["ChatBubblePreview + TuningControlsSheet"]
         VM["ConverterViewModel (StateFlow + Effects)"]
@@ -84,7 +84,9 @@ flowchart TD
 
 ---
 
-## 2. Estructura de Paquetes (`app/src/main/java/com/laralbir/img2asciiim/`)
+## 2. Estructura de Paquetes, Recursos de Identidad Visual y Activos
+
+### 2.1 Código Fuente Kotlin (`app/src/main/java/com/laralbir/img2asciiim/`)
 
 ```text
 com.laralbir.img2asciiim/
@@ -146,6 +148,37 @@ com.laralbir.img2asciiim/
     └── AppContainer.kt              # Inyección de dependencias ligera en Kotlin puro (cero reflexión)
 ```
 
+### 2.2 Jerarquía de Recursos Android y Activos de Launch (`RF-05`)
+
+```text
+app/src/main/res/
+├── drawable/
+│   ├── ic_launcher_background.xml   # 108dp × 108dp: fondo oscuro corporativo (#0D1117) + rejilla sutil
+│   ├── ic_launcher_foreground.xml   # 108dp × 108dp: glifo inscrito en zona segura central de 66dp × 66dp (margen 21dp)
+│   ├── ic_launcher_monochrome.xml   # 108dp × 108dp: silueta monocroma 1 canal para Themed Icons (Android 13+ / API 33+)
+│   ├── ic_splash_logo.xml           # 240dp × 240dp (zona segura 160dp): AnimatedVectorDrawable <= 300 ms (DD-05 Opción A)
+│   └── ic_splash_branding.xml       # 200dp × 80dp: marca tipográfica monoespaciada limpia "img2asciiIM"
+├── mipmap-anydpi-v26/
+│   ├── ic_launcher.xml              # <adaptive-icon>: <background>, <foreground> y <monochrome>
+│   └── ic_launcher_round.xml        # <adaptive-icon>: <background>, <foreground> y <monochrome>
+├── mipmap-mdpi/                     # ic_launcher.webp + ic_launcher_round.webp (48 × 48 px)
+├── mipmap-hdpi/                     # ic_launcher.webp + ic_launcher_round.webp (72 × 72 px)
+├── mipmap-xhdpi/                    # ic_launcher.webp + ic_launcher_round.webp (96 × 96 px)
+├── mipmap-xxhdpi/                   # ic_launcher.webp + ic_launcher_round.webp (144 × 144 px)
+├── mipmap-xxxhdpi/                  # ic_launcher.webp + ic_launcher_round.webp (192 × 192 px)
+├── values/
+│   └── themes.xml                   # Theme.Img2asciiIM.Starting (Theme.SplashScreen) -> Theme.Img2asciiIM (Claro)
+├── values-night/
+│   └── themes.xml                   # Theme.Img2asciiIM.Starting (fondo oscuro #0D1117 sin destellos blancos)
+└── values-v31/
+    └── themes.xml                   # Extiende Theme.Img2asciiIM.Starting con android:windowSplashScreenBrandingImage
+
+docs/assets/
+├── banner.png                       # Banner principal existente del repositorio (referencia cromática y estilística)
+├── icon-512.png                     # Icono maestro de alta resolución (512 × 512 px PNG) para tienda y releases
+└── launch-feature-1024x500.png      # Feature Graphic / imagen promocional de lanzamiento (1024 × 500 px PNG)
+```
+
 ---
 
 ## 3. Pipeline de Procesamiento y Presupuesto de Memoria / Tiempo
@@ -181,7 +214,8 @@ sequenceDiagram
    - Dado que `R = max(1, round(C * (imgHeight / imgWidth) * verticalScaleFactor))` es monótona creciente respecto a `C`, si `L_total(C_solicitado) > MaxBudget` (`1.000` en Instagram DM o `4.096` en Telegram), `CharacterBudgetEnforcer` halla mediante **búsqueda binaria en `O(log C)`** el mayor `C_efectivo` tal que `L_total(C_efectivo) <= MaxBudget`.
 
 3. **Integración Limpia con el Manifiesto Android (`AndroidManifest.xml`):**
-   - **Permisos:** Cero `INTERNET`, cero `READ_MEDIA_IMAGES`, cero `READ_EXTERNAL_STORAGE`, cero `CAMERA` (bajo Opción A de `DD-01`).
+   - **Permisos:** Cero `INTERNET`, cero `READ_MEDIA_IMAGES`, cero `READ_EXTERNAL_STORAGE`, cero `CAMERA` (`DD-01 Opción A`).
+   - **Identidad Visual y Tema de Arranque (`RF-05`):** `<application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:theme="@style/Theme.Img2asciiIM.Starting">`, con `MainActivity` como única actividad de entrada (prohibida cualquier `SplashActivity` intermedia).
    - **Visibilidad de Paquetes Android 11+ (`<queries>`):**
      ```xml
      <queries>
@@ -194,6 +228,29 @@ sequenceDiagram
      ```
    - **`FileProvider`:** Configurado exclusivamente sobre `<cache-path name="camera_captures" path="camera_captures/" />` con `android:exported="false"` y `android:grantUriPermissions="true"`.
    - **Receptor Share Sheet:** `<intent-filter>` con `android.intent.action.SEND`, categoría `DEFAULT` y `mimeType="image/*"`.
+
+4. **Secuencia de Arranque Nativa (`androidx.core:core-splashscreen`) y Pipeline de Activos (`RF-05`):**
+   - **Catálogo de Versiones (`gradle/libs.versions.toml`) y Dependencia:**
+     - `coreSplashscreen = "1.2.0"` y entrada `androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }` consumida en `app/build.gradle.kts` (`implementation(libs.androidx.core.splashscreen)`).
+   - **Orden Estricto en `MainActivity.onCreate(savedInstanceState: Bundle?)`:**
+     ```kotlin
+     override fun onCreate(savedInstanceState: Bundle?) {
+         installSplashScreen() // 1. Antes de super.onCreate(): aplica postSplashScreenTheme (Theme.Img2asciiIM)
+         super.onCreate(savedInstanceState)
+         enableEdgeToEdge()    // 2. Configura barras transparentes inmersivas sobre el tema definitivo
+         handleIncomingShareIntent(intent)
+         setContent {
+             Img2asciiIMTheme {
+                 AppNavigation(...)
+             }
+         }
+     }
+     ```
+     No se registra ningún `setKeepOnScreenCondition` con temporizadores ni `delay()`: la animación vectorial (`AnimatedVectorDrawable` `≤ 300 ms`) acompaña el arranque en frío sin retener el primer fotograma de Compose.
+   - **Pipeline de Generación de Activos (`image-generator` + Tooling Vectorial/WebP):**
+     1. Generación de los activos maestros de publicación `docs/assets/icon-512.png` (`512 × 512 px`) y `docs/assets/launch-feature-1024x500.png` (`1024 × 500 px`) con `image-generator`, asegurando continuidad visual con `docs/assets/banner.png` (`#0D1117`, acentos esmeralda/cian, motivo avión/imagen → puntos Braille/ASCII en burbuja IM).
+     2. Construcción geométrica determinista de los `VectorDrawable` / `AnimatedVectorDrawable` en `res/drawable/` verificando matemáticamente las zonas seguras (`66dp` centrales en `108dp` para launcher; `160dp` centrales en `240dp` para splash).
+     3. Rasterización y codificación `.webp` sin pérdida para las 5 densidades `mipmap-{mdpi..xxxhdpi}` (`48`, `72`, `96`, `144`, `192` px), eliminando por completo los binarios por defecto del template.
 
 ---
 
@@ -215,11 +272,11 @@ flowchart TD
 - **Garantías:** Verifica bit a bit cada punto Braille `U+2800..U+28FF`, conservación de proporciones, difusión de error Floyd-Steinberg/Atkinson, límites exactos de `1.000`, `4.096` y `65.536` caracteres y transiciones del `StateFlow` ante deslizamientos rápidos de controles. Tiempo objetivo de toda la capa `domain/`: **< 100 ms**.
 
 ### Nivel 2 — Integración Android & UI en JVM con Robolectric (`./gradlew testDebugUnitTest`)
-- **Alcance:** `data/**` (`AndroidImageSourceDecoder`, `ExifOrientationNormalizer`, `ImShareIntentFactory`, auditoría de `AndroidManifest.xml`) y `ui/**` (`ConverterScreen` con `createComposeRule()`).
-- **Herramientas:** Robolectric, `androidx.compose.ui:ui-test-junit4`, `ExifInterface`.
-- **Garantías:** Confirma que decodificar imágenes grandes aplica `inSampleSize > 1`, que `IOException` de un archivo de Google Drive sin caché no rompe el proceso, que `ACTION_SEND` apunta al paquete correcto o cae en `Intent.createChooser`, y que todos los nodos interactivos cumplen accesibilidad.
+- **Alcance:** `data/**` (`AndroidImageSourceDecoder`, `ExifOrientationNormalizer`, `ImShareIntentFactory`, auditoría de `AndroidManifest.xml`), `ui/**` (`ConverterScreen` con `createComposeRule()`) y `res/**` + `docs/assets/**` (`BrandAssetsAndSplashRobolectricTest`).
+- **Herramientas:** Robolectric, `androidx.compose.ui:ui-test-junit4`, `ExifInterface`, `ActivityScenario`.
+- **Garantías:** Confirma que decodificar imágenes grandes aplica `inSampleSize > 1`, que `IOException` de un archivo de Google Drive sin caché no rompe el proceso, que `ACTION_SEND` apunta al paquete correcto o cae en `Intent.createChooser`, que todos los nodos interactivos cumplen accesibilidad, y que el icono adaptativo incluye `<background>`, `<foreground>` y `<monochrome>`, los `.webp` y PNGs maestros (`512×512`, `1024×500`) tienen dimensiones exactas sin hashes del template y `MainActivity` arranca en frío con `Theme.Img2asciiIM.Starting` → `installSplashScreen()` → `Theme.Img2asciiIM`.
 
 ### Nivel 3 — Instrumentados End-to-End en Dispositivo Físico / AVD (`./gradlew connectedDebugAndroidTest`)
-- **Alcance:** Flujo integrado sobre runtime ART real conectado por **USB o Wi-Fi ADB**.
+- **Alcance:** Flujo integrado sobre runtime ART real conectado por **USB o Wi-Fi ADB**, incluyendo arranque en frío (*cold start*) con `SplashScreen` nativa.
 - **Herramientas:** AndroidX Test Runner, Compose Android UI Test, `ClipboardManager` real del sistema, perfilado de memoria `Runtime.getRuntime()`.
-- **Garantías:** Certifica en silicio real que una imagen generada de `8000 × 6000` (48 MP) se convierte en `< 150 ms` consumiendo `< 20 MB` de RAM adicional, que `U+2800` mantiene alineación visual en el motor tipográfico Skia/Minikin de Android y que todo funciona sin conectividad de red.
+- **Garantías:** Certifica en silicio real que el arranque en frío transiciona instantáneamente de `SplashScreen` a `ConverterScreen` sin pantallas en blanco ni demoras artificiales, que una imagen generada de `8000 × 6000` (48 MP) se convierte en `< 150 ms` consumiendo `< 20 MB` de RAM adicional, que `U+2800` mantiene alineación visual en el motor tipográfico Skia/Minikin de Android y que todo funciona sin conectividad de red.

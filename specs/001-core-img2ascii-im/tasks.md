@@ -4,16 +4,16 @@
 | :--- | :--- |
 | **Especificación Asociada** | [`specs/001-core-img2ascii-im/spec.md`](spec.md) |
 | **Plan Arquitectónico** | [`specs/001-core-img2ascii-im/plan.md`](plan.md) |
-| **Estado de Ejecución** | `BLOQUEADO HASTA SIGN-OFF DEL USUARIO EN spec.md` |
+| **Estado de Ejecución** | `HABILITADO — Spec APROBADA por el usuario (2026-11-06)` |
 | **Disciplina Obligatoria** | Cada tarea **debe** completar secuencialmente `[RED]` → `[GREEN]` → `[REFACTOR]` |
 
 ---
 
-## Gate 0 — Aprobación de Especificación (*Pre-TDD Sign-off*)
+## Gate 0 — Aprobación de Especificación (*Pre-TDD Sign-off*) — `[x] COMPLETADO — Spec APROBADA`
 
-- [ ] **G0.1:** El usuario revisa [`spec.md`](spec.md) y resuelve las Decisiones de Diseño Abiertas (`DD-01`, `DD-02`, `DD-03`, `DD-04`).
-- [ ] **G0.2:** `sdd-architect` actualiza `spec.md` con las decisiones confirmadas y cambia el estado de `BORRADOR` a `APROBADO`.
-- [ ] **G0.3:** El esqueleto vacío de compilación (`./gradlew testDebugUnitTest` sin lógica de negocio) compila en limpio.
+- [x] **G0.1:** El usuario revisa [`spec.md`](spec.md) y resuelve las Decisiones de Diseño Abiertas (`DD-01`, `DD-02`, `DD-03`, `DD-04`, `DD-05` → `Opción A` confirmada en todas).
+- [x] **G0.2:** `sdd-architect` actualiza `spec.md` con las decisiones confirmadas y cambia el estado de `BORRADOR` a `APROBADO`.
+- [x] **G0.3:** El esqueleto base de compilación (`./gradlew testDebugUnitTest` sin lógica de negocio) está listo para arrancar en `RED`.
 
 ---
 
@@ -120,9 +120,25 @@
 
 ## Slice 7 — Verificación End-to-End en Dispositivo Físico / AVD (USB y Wi-Fi ADB)
 
-> **Cobertura:** `RNF-01` (`< 150 ms`), `RNF-02` (`< 20 MB` RAM con foto 48 MP), `RNF-04` (Modo Avión / Offline total), Renderizado real de fuentes Android.
+> **Cobertura:** `RNF-01` (`< 150 ms`), `RNF-02` (`< 20 MB` RAM con foto 48 MP), `RNF-04` (Modo Avión / Offline total), `CA-05.2` (Arranque E2E instantáneo), Renderizado real de fuentes Android.
 
 - [ ] **Tarea 7.1 — Suite Instrumentada `EndToEndConversionAndroidTest`**
-  - **`[RED]`:** Crear `app/src/androidTest/java/com/laralbir/img2asciiim/EndToEndConversionAndroidTest.kt` automatizando en dispositivo real/AVD: (1) generación en caché de prueba de una imagen sintética de `8000 × 6000` (`48 MP`) con rotación EXIF `90°`; (2) inyección de la imagen en la app, verificando que el incremento de heap durante la decodificación y conversión es `< 20 MB` (`RNF-02`) y que el tiempo del motor es `< 150 ms` (`RNF-01`); (3) cambio entre perfiles WhatsApp, Telegram e Instagram Direct comprobando longitud exacta y copia real al `ClipboardManager` del dispositivo; (4) verificación visual/métrica de que una fila de `U+2800` tiene ancho mayor que cero en el componente `Text` con fuente proporcional del sistema.
+  - **`[RED]`:** Crear `app/src/androidTest/java/com/laralbir/img2asciiim/EndToEndConversionAndroidTest.kt` automatizando en dispositivo real/AVD: (1) arranque en frío de `MainActivity` verificando transición directa `SplashScreen` → `ConverterScreen` sin `SplashActivity` intermedia ni bloqueos (`CA-05.2`); (2) generación en caché de prueba de una imagen sintética de `8000 × 6000` (`48 MP`) con rotación EXIF `90°`; (3) inyección de la imagen en la app, verificando que el incremento de heap durante la decodificación y conversión es `< 20 MB` (`RNF-02`) y que el tiempo del motor es `< 150 ms` (`RNF-01`); (4) cambio entre perfiles WhatsApp, Telegram e Instagram Direct comprobando longitud exacta y copia real al `ClipboardManager` del dispositivo; (5) verificación visual/métrica de que una fila de `U+2800` tiene ancho mayor que cero en el componente `Text` con fuente proporcional del sistema.
   - **`[GREEN]`:** Ejecutar `./gradlew connectedDebugAndroidTest` sobre dispositivo enlazado por **USB o Wi-Fi ADB** y ajustar cualquier detalle de integración con ART/Skia hasta pasar al 100% en verde.
-  - **`[REFACTOR]`:** Ejecutar validación en **Modo Avión** (`RNF-04`), documentar métricas reales obtenidas y actualizar el estado de [`spec.md`](spec.md) a `IMPLEMENTADO`.
+  - **`[REFACTOR]`:** Ejecutar validación en **Modo Avión** (`RNF-04`) y documentar métricas reales obtenidas.
+
+---
+
+## Slice 8 — Identidad Visual Nativa: Icono Adaptativo/Monocromo, Launch Graphics y SplashScreen API (`res/` + `ui/` + `docs/assets/`)
+
+> **Cobertura:** `HU-06`, `RF-05` (`CA-05.1` Icono adaptativo + `<monochrome>` + WebP sin template, `CA-05.2` `SplashScreen` nativa cero-delay + `Edge-to-Edge`, `CA-05.3` Activos maestros `512×512` y `1024×500`), `CB-07`, `DD-05 Opción A`.
+
+- [ ] **Tarea 8.1 — Icono Adaptativo (`<background>`, `<foreground>`, `<monochrome>`), Densidades `.webp` y Activos Maestros (`512×512` / `1024×500`)**
+  - **`[RED]`:** Crear `app/src/test/java/com/laralbir/img2asciiim/ui/branding/BrandAssetsAndSplashRobolectricTest.kt` verificando: (1) `@mipmap/ic_launcher` y `@mipmap/ic_launcher_round` resuelven en API 26+ como `AdaptiveIconDrawable` con capas `background`, `foreground` y —en API 33+ / descriptor XML `mipmap-anydpi-v26`— `<monochrome>` no nulas (`CA-05.1`); (2) `@drawable/ic_launcher_background`, `@drawable/ic_launcher_foreground` e `@drawable/ic_launcher_monochrome` declaran lienzo `108dp × 108dp` respetando la zona segura central de `66dp × 66dp`; (3) todas las variantes `mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher*.webp` existen, decodifican a `48`, `72`, `96`, `144` y `192` px respectivamente y sus checksums SHA-256 difieren de los iconos verdes por defecto del template (`CA-05.1`); (4) existen `docs/assets/icon-512.png` (`512 × 512 px`) y `docs/assets/launch-feature-1024x500.png` (`1024 × 500 px`) como imágenes PNG válidas no vacías (`CA-05.3`). Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo (`RED`).
+  - **`[GREEN]`:** Generar `docs/assets/icon-512.png` y `docs/assets/launch-feature-1024x500.png` (coherentes con `docs/assets/banner.png`), crear los `VectorDrawable` `ic_launcher_{background,foreground,monochrome}.xml` (`#0D1117` + glifo esmeralda/cian avión/imagen → matriz Braille/ASCII en burbuja IM), añadir `<monochrome android:drawable="@drawable/ic_launcher_monochrome" />` en `mipmap-anydpi-v26/ic_launcher*.xml` y regenerar los `.webp` en `mipmap-{mdpi..xxxhdpi}`. Confirmar tests de activos en verde (`GREEN`).
+  - **`[REFACTOR]`:** Simplificar y alinear rutas SVG/`pathData` a píxel entero en la cuadrícula `108×108`, verificar silueta en *Themed Icons* claro/oscuro y optimizar peso `.webp` lossless.
+
+- [ ] **Tarea 8.2 — `SplashScreen` API Nativa (`androidx.core:core-splashscreen`), `Theme.Img2asciiIM.Starting` y Arranque en Frío en `MainActivity`**
+  - **`[RED]`:** Ampliar `BrandAssetsAndSplashRobolectricTest.kt` verificando: (1) `AndroidManifest.xml` asigna `@style/Theme.Img2asciiIM.Starting` y **no** declara ninguna `SplashActivity` adicional (`CA-05.2`); (2) `Theme.Img2asciiIM.Starting` (en `values`, `values-night` y `values-v31`) define `windowSplashScreenBackground`, `windowSplashScreenAnimatedIcon` (`@drawable/ic_splash_logo`, `240dp × 240dp` con zona segura `160dp`), `windowSplashScreenBrandingImage` en API 31+ (`@drawable/ic_splash_branding`, `200dp × 80dp`) y `postSplashScreenTheme = @style/Theme.Img2asciiIM` (`CA-05.2`, `CB-07`); (3) el lanzamiento en frío de `MainActivity` (`ActivityScenario.launch`) ejecuta `installSplashScreen()` antes de `super.onCreate()`, transiciona el tema activo a `Theme.Img2asciiIM`, renderiza el árbol Compose `Edge-to-Edge` en el primer fotograma sin `delay()` artificial y soporta también arranque con `Intent.ACTION_SEND` (`CA-05.2`). Ejecutar `./gradlew testDebugUnitTest` y confirmar fallo (`RED`).
+  - **`[GREEN]`:** Añadir `androidx.core:core-splashscreen` en `gradle/libs.versions.toml` y `app/build.gradle.kts`, crear `@drawable/ic_splash_logo` (`AnimatedVectorDrawable` `≤ 300 ms` no bloqueante según `DD-05 Opción A`) e `@drawable/ic_splash_branding`, declarar `Theme.Img2asciiIM.Starting` en `values/themes.xml`, `values-night/themes.xml` y `values-v31/themes.xml`, actualizar `AndroidManifest.xml` e integrar `installSplashScreen()` → `super.onCreate()` → `enableEdgeToEdge()` en `MainActivity.kt`. Confirmar toda la suite `BrandAssetsAndSplashRobolectricTest` en verde (`GREEN`).
+  - **`[REFACTOR]`:** Medir tiempo de arranque en frío (`am start -S -W`) en dispositivo/AVD confirmando ausencia de pantallas blancas o bloqueos, ejecutar `./gradlew lintDebug` con **0 errores** y actualizar el estado final de [`spec.md`](spec.md) a `IMPLEMENTADO` una vez completados los Slices `1..8`.

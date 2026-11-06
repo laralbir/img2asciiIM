@@ -75,10 +75,12 @@ make test-device     # Ejecuta tests instrumentados (androidTest) en el móvil U
 
 ## Documentación del Proyecto
 
-- [`AGENTS.md`](AGENTS.md) — Constitución de trabajo SDD + TDD, arquitectura por capas y roles multi-agente.
-- [`specs/001-core-img2ascii-im/spec.md`](specs/001-core-img2ascii-im/spec.md) — Especificación funcional/técnica inicial (`BORRADOR` con decisiones abiertas `DD-01..DD-04`).
-- [`specs/001-core-img2ascii-im/plan.md`](specs/001-core-img2ascii-im/plan.md) — Plan arquitectónico Clean Architecture y estrategia de testing.
-- [`specs/001-core-img2ascii-im/tasks.md`](specs/001-core-img2ascii-im/tasks.md) — Hoja de ruta en 7 *Vertical Slices* TDD (`[RED] → [GREEN] → [REFACTOR]`).
+- [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — **Guía de Usuario**: uso en vuelos comerciales, preparación de Google Drive sin conexión, recetas por tipo de imagen y envío en WhatsApp, Telegram e Instagram Direct.
+- [`docs/TECHNICAL_DEVELOPMENT.md`](docs/TECHNICAL_DEVELOPMENT.md) — **Documentación Técnica del Desarrollo**: arquitectura limpia, motor matemático Braille/ASCII/Dithering, seguridad SAF/`ACTION_SEND`, icono adaptativo/SplashScreen y flujo TDD.
 - [`docs/DEBUGGING.md`](docs/DEBUGGING.md) — Guía paso a paso para depuración por USB, Wi-Fi (QR / código / puente USB) y *mirroring* en vivo.
 - [`docs/IM_CONSTRAINTS.md`](docs/IM_CONSTRAINTS.md) — Estudio técnico de Wi-Fi en vuelos comerciales y límites/peculiaridades de WhatsApp, Telegram e Instagram DM.
 - [`docs/ANDROID_ARCHITECTURE_AND_SECURITY.md`](docs/ANDROID_ARCHITECTURE_AND_SECURITY.md) — Directrices auditadas de seguridad de `Intent`s, SAF, Photo Picker y AGP 9.
+- [`AGENTS.md`](AGENTS.md) — Constitución de trabajo SDD + TDD, arquitectura por capas y roles multi-agente.
+- [`specs/001-core-img2ascii-im/spec.md`](specs/001-core-img2ascii-im/spec.md) — Especificación funcional/técnica (`APROBADO`).
+- [`specs/001-core-img2ascii-im/plan.md`](specs/001-core-img2ascii-im/plan.md) — Plan arquitectónico Clean Architecture y estrategia de testing.
+- [`specs/001-core-img2ascii-im/tasks.md`](specs/001-core-img2ascii-im/tasks.md) — Hoja de ruta en 8 *Vertical Slices* TDD (`[RED] → [GREEN] → [REFACTOR]`).
