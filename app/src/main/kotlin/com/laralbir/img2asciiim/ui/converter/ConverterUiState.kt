@@ -1,5 +1,6 @@
 package com.laralbir.img2asciiim.ui.converter
 
+import com.laralbir.img2asciiim.data.update.UpdateCheckResult
 import com.laralbir.img2asciiim.domain.model.AsciiConversionResult
 import com.laralbir.img2asciiim.domain.model.ConversionParams
 
@@ -12,6 +13,7 @@ enum class ImageSourceOrigin(val displayName: String) {
   DOCUMENTS_OR_CLOUD("Archivos / Drive"),
   CAMERA("Cámara"),
   INCOMING_SHARE("Compartido"),
+  DEEP_LINK("Enlace HD"),
 }
 
 /**
@@ -28,6 +30,10 @@ data class ConverterUiState(
   val sourceDimensionsLabel: String = "",
   val params: ConversionParams = ConversionParams(),
   val previewDarkBubble: Boolean = true,
+  val includeAsciiArt: Boolean = true,
+  val attachDeepLink: Boolean = false,
   val conversionResult: AsciiConversionResult? = null,
   val errorBannerMessage: String? = null,
+  val isCheckingUpdate: Boolean = false,
+  val updateCheckResult: UpdateCheckResult? = null,
 )

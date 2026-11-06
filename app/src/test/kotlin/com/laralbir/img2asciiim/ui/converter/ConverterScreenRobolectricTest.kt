@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.laralbir.img2asciiim.domain.engine.DemoSampleImageFactory
 import com.laralbir.img2asciiim.domain.model.AsciiConversionResult
 import com.laralbir.img2asciiim.domain.model.CharsetMode
@@ -19,6 +20,7 @@ import com.laralbir.img2asciiim.domain.repository.ImageSourceRepository
 import com.laralbir.img2asciiim.domain.repository.MessageShareGateway
 import com.laralbir.img2asciiim.ui.theme.Img2asciiIMTheme
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -203,5 +205,41 @@ class ConverterScreenRobolectricTest {
     testDispatcher.scheduler.advanceUntilIdle()
 
     composeTestRule.onNodeWithTag(ConverterTestTags.WIDTH_OVERFLOW_WARNING).assertExists()
+  }
+
+  @Test
+  fun converterScreen_deliveryOptions_togglingAsciiAndDeepLinkWorks() {
+    val repo = FakeImageSourceRepo()
+    val gateway = FakeShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repo,
+      messageShareGateway = gateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.setContent {
+      Img2asciiIMTheme {
+        ConverterScreen(
+          viewModel = viewModel,
+          onPrepareCameraCaptureTarget = { null },
+        )
+      }
+    }
+
+    // Both chips exist
+    composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_INCLUDE_ASCII).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_ATTACH_DEEP_LINK).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_CHECK_UPDATES).assertExists()
+
+    // Toggle off ASCII preview -> triggers HD mode expanded card
+    composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_INCLUDE_ASCII).performScrollTo().performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.includeAsciiArt)
+    assertTrue(viewModel.uiState.value.attachDeepLink)
+    composeTestRule.onNodeWithTag(ConverterTestTags.HD_MODE_EXPANDED_CARD).assertExists()
   }
 }

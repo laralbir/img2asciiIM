@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>img2asciiIM — Visor de Foto en Alta Definición</title>
+  <meta name="description" content="Visor estático offline autónomo para enlaces compartidos desde img2asciiIM (Android).">
+  <link rel="icon" type="image/png" href="assets/banner.png">
+  <style>
+    :root {
+      --bg: #0D1117;
+      --card-bg: #161B22;
+      --border: #30363D;
+      --primary: #10B981;
+      --primary-hover: #059669;
+      --text: #F0F6FC;
+      --text-muted: #8B949E;
+      --accent: #00E5FF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+    }
+
+    header {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #10B981, #00E5FF);
+      color: #000;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    main {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .viewer-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .image-wrapper {
+      width: 100%;
+      max-height: 70vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .image-wrapper img {
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+      display: block;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-color: var(--text-muted);
+    }
+
+    .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .status-msg {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .hero-landing {
+      text-align: center;
+      padding: 2rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .hero-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #10B981, #00E5FF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      color: var(--text-muted);
+      max-width: 480px;
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: auto;
+      padding-top: 2rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="#" class="brand">
+      <span>img2asciiIM</span>
+      <span class="brand-badge">Visor HD</span>
+    </a>
+    <a href="https://github.com/laralbir/img2asciiIM/releases/latest" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+      Descargar APK
+    </a>
+  </header>
+
+  <main>
+    <div id="viewer-section" class="card viewer-container" style="display: none;">
+      <div class="image-wrapper">
+        <img id="decoded-image" alt="Fotografía compartida desde img2asciiIM" />
+      </div>
+      <p id="image-info" class="status-msg">Cargando fotografía original desde el enlace...</p>
+      <div class="actions-row">
+        <a id="btn-save" class="btn btn-primary" download="foto_compartida.jpg">
+          💾 Guardar Foto
+        </a>
+        <a href="https://github.com/laralbir/img2asciiIM/releases/latest" class="btn btn-outline">
+          ⚡ Abrir en App img2asciiIM
+        </a>
+      </div>
+    </div>
+
+    <div id="landing-section" class="card hero-landing">
+      <h1 class="hero-title">img2asciiIM para Android</h1>
+      <p class="hero-desc">
+        Convierte cualquier foto 100% offline a arte de texto (Braille Unicode y ASCII) optimizado para WhatsApp, Telegram e Instagram Direct en redes de solo mensajería (ej. Wi-Fi de avión).
+      </p>
+      <div class="actions-row" style="margin-top: 1rem;">
+        <a href="https://github.com/laralbir/img2asciiIM/releases/latest" class="btn btn-primary">
+          📥 Descargar APK (GitHub Releases)
+        </a>
+        <a href="https://github.com/laralbir/img2asciiIM" class="btn btn-outline">
+          GitHub Repo
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>img2asciiIM — 100% Offline & Open Source • <a href="https://github.com/laralbir/img2asciiIM">GitHub</a></p>
+  </footer>
+
+  <script>
+    (function () {
+      function getPayload() {
+        const hash = window.location.hash;
+        if (hash && hash.includes('data=')) {
+          const idx = hash.indexOf('data=');
+          return hash.substring(idx + 5).trim();
+        }
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('data')) {
+          return params.get('data').trim();
+        }
+        return null;
+      }
+
+      function urlSafeBase64ToBlob(base64) {
+        let normalized = base64.replace(/-/g, '+').replace(/_/g, '/');
+        while (normalized.length % 4 !== 0) {
+          normalized += '=';
+        }
+        const byteCharacters = atob(normalized);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: 'image/jpeg' });
+      }
+
+      const payload = getPayload();
+      const viewerSection = document.getElementById('viewer-section');
+      const landingSection = document.getElementById('landing-section');
+      const decodedImg = document.getElementById('decoded-image');
+      const imageInfo = document.getElementById('image-info');
+      const btnSave = document.getElementById('btn-save');
+
+      if (payload) {
+        try {
+          const blob = urlSafeBase64ToBlob(payload);
+          const objectUrl = URL.createObjectURL(blob);
+          decodedImg.src = objectUrl;
+          btnSave.href = objectUrl;
+
+          decodedImg.onload = function () {
+            viewerSection.style.display = 'flex';
+            landingSection.style.display = 'none';
+            imageInfo.textContent = `Fotografía original (${decodedImg.naturalWidth} × ${decodedImg.naturalHeight} px) decodificada 100% en tu navegador.`;
+          };
+          decodedImg.onerror = function () {
+            viewerSection.style.display = 'none';
+            landingSection.style.display = 'flex';
+          };
+        } catch (e) {
+          console.error('Error decoding image payload:', e);
+          viewerSection.style.display = 'none';
+          landingSection.style.display = 'flex';
+        }
+      } else {
+        viewerSection.style.display = 'none';
+        landingSection.style.display = 'flex';
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -4,6 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.laralbir.img2asciiim.data.source.DeepLinkImageCodec
+import com.laralbir.img2asciiim.data.source.DeepLinkMode
+import com.laralbir.img2asciiim.data.update.GitHubUpdateChecker
+import com.laralbir.img2asciiim.data.update.UpdateCheckResult
 import com.laralbir.img2asciiim.domain.engine.ImageToAsciiUseCase
 import com.laralbir.img2asciiim.domain.model.CharsetMode
 import com.laralbir.img2asciiim.domain.model.ConversionParams
@@ -42,6 +46,8 @@ class ConverterViewModel(
   private val imageSourceRepository: ImageSourceRepository,
   private val messageShareGateway: MessageShareGateway,
   private val imageToAsciiUseCase: ImageToAsciiUseCase = ImageToAsciiUseCase(),
+  private val deepLinkCodec: DeepLinkImageCodec = DeepLinkImageCodec(),
+  private val updateChecker: GitHubUpdateChecker = GitHubUpdateChecker(),
   private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
   private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
   loadDemoOnStart: Boolean = true,
@@ -105,9 +111,14 @@ class ConverterViewModel(
 
   fun onIncomingShareResult(outcome: DomainResult<DecodedImage, ImageDecodeError>) {
     decodeJob?.cancel()
+    val origin = if (outcome is DomainResult.Success && outcome.value.label?.contains("Deep Link") == true) {
+      ImageSourceOrigin.DEEP_LINK
+    } else {
+      ImageSourceOrigin.INCOMING_SHARE
+    }
     applyDecodeOutcome(
       outcome = outcome,
-      origin = ImageSourceOrigin.INCOMING_SHARE,
+      origin = origin,
       defaultLabel = DEFAULT_INCOMING_SHARE_LABEL,
     )
   }
@@ -181,31 +192,92 @@ class ConverterViewModel(
     _uiState.update { state -> state.copy(previewDarkBubble = !state.previewDarkBubble) }
   }
 
+  fun onToggleIncludeAsciiArt(include: Boolean) {
+    _uiState.update { state ->
+      val newInclude = include
+      val newAttach = if (!newInclude) true else state.attachDeepLink
+      state.copy(includeAsciiArt = newInclude, attachDeepLink = newAttach)
+    }
+  }
+
+  fun onToggleAttachDeepLink(attach: Boolean) {
+    _uiState.update { state ->
+      val newAttach = attach
+      val newInclude = if (!newAttach) true else state.includeAsciiArt
+      state.copy(attachDeepLink = newAttach, includeAsciiArt = newInclude)
+    }
+  }
+
+  fun onCheckForUpdates(currentVersionName: String) {
+    if (_uiState.value.isCheckingUpdate) return
+    _uiState.update { it.copy(isCheckingUpdate = true) }
+    viewModelScope.launch(ioDispatcher) {
+      val result = updateChecker.check(currentVersionName)
+      withContext(Dispatchers.Main) {
+        _uiState.update { it.copy(isCheckingUpdate = false, updateCheckResult = result) }
+      }
+    }
+  }
+
+  fun onDismissUpdateDialog() {
+    _uiState.update { it.copy(updateCheckResult = null) }
+  }
+
+  fun buildShareableMessage(): String? {
+    val state = _uiState.value
+    val result = state.conversionResult ?: return null
+    val preset = state.params.preset
+
+    if (preset == ImPlatformPreset.INSTAGRAM_DIRECT || !state.attachDeepLink) {
+      return result.formattedMessage
+    }
+
+    val decoded = currentDecodedImage ?: return result.formattedMessage
+
+    return if (!state.includeAsciiArt) {
+      // EXPANDED_HD mode: ASCII preview omitted, dedicating all bytes to the photo!
+      val deepLinkUrl = deepLinkCodec.encodeToDeepLink(
+        pixelGrid = decoded.pixelGrid,
+        mode = DeepLinkMode.EXPANDED_HD,
+        preset = preset,
+      )
+      "📸 Ver foto en alta resolución:\n$deepLinkUrl"
+    } else {
+      // STANDARD mode: Both ASCII art and deep link thumbnail
+      val deepLinkUrl = deepLinkCodec.encodeToDeepLink(
+        pixelGrid = decoded.pixelGrid,
+        mode = DeepLinkMode.STANDARD,
+        preset = preset,
+      )
+      "${result.formattedMessage}\n\n🔗 Ver foto en alta definición:\n$deepLinkUrl"
+    }
+  }
+
   fun onDismissErrorBanner() {
     _uiState.update { state -> state.copy(errorBannerMessage = null) }
   }
 
   fun onCopyClicked() {
-    val result = _uiState.value.conversionResult ?: return
-    messageShareGateway.copyToClipboard(result.formattedMessage)
+    val message = buildShareableMessage() ?: return
+    messageShareGateway.copyToClipboard(message)
     emitEffect(
       ConverterUiEffect.ShowSnackbar(
-        "Arte copiado al portapapeles (${result.charCount} caracteres)",
+        "Arte copiado al portapapeles (${message.length} caracteres)",
       ),
     )
   }
 
   fun onShareClicked() {
     val state = _uiState.value
-    val result = state.conversionResult ?: return
+    val message = buildShareableMessage() ?: return
     val preset = state.params.preset
-    val outcome = messageShareGateway.shareToPlatform(result.formattedMessage, preset)
+    val outcome = messageShareGateway.shareToPlatform(message, preset)
     emitEffect(
       ConverterUiEffect.ShowSnackbar(
         formatShareOutcomeMessage(
           outcome = outcome,
           preset = preset,
-          charCount = result.charCount,
+          charCount = message.length,
         ),
       ),
     )

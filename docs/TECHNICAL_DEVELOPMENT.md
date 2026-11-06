@@ -14,7 +14,7 @@ Este documento constituye la referencia de ingeniería de software de **`img2asc
 1. [Visión Arquitectónica y Stack Tecnológico Moderno](#1-visión-arquitectónica-y-stack-tecnológico-moderno)
 2. [Metodología SDD + TDD Estricto](#2-metodología-sdd--tdd-estricto)
 3. [Ingeniería del Motor de Conversión 100 % Offline (`domain/`)](#3-ingeniería-del-motor-de-conversión-100--offline-domain)
-4. [Capa de Datos, Seguridad y Cero Permisos (`data/`)](#4-capa-de-datos-seguridad-y-cero-permisos-data)
+4. [Capa de Datos, Seguridad, Enlaces HD y Actualizaciones (`data/`)](#4-capa-de-datos-seguridad-enlaces-hd-y-actualizaciones-data)
 5. [Identidad Visual Nativa y Arranque (`RF-05`)](#5-identidad-visual-nativa-y-arranque-rf-05)
 6. [Guía de Compilación, Tests, CI/CD y Despliegue Multi-Dispositivo (USB y Wi-Fi)](#6-guía-de-compilación-tests-cicd-y-despliegue-multi-dispositivo-usb-y-wi-fi)
 
@@ -35,7 +35,7 @@ El proyecto se apoya en la generación actual de herramientas de compilación y 
 | Categoría | Componente / Artefacto | Versión | Rol Arquitectónico y Justificación |
 | :--- | :--- | :---: | :--- |
 | **Lenguaje y Compiladores** | **Kotlin** (`kotlin`, `compose-compiler`, `kotlin-serialization`) | `2.3.20` | Lenguaje único del proyecto (código + scripts KTS), compilador K2 de alto rendimiento, *value classes* y serialización tipada sin reflexión para rutas de navegación. |
-| **Sistema de Build** | **Android Gradle Plugin (AGP)** | `9.0.1` | Soporte **Built-in Kotlin** nativo en `com.android.application` (sin requerir el plugin heredado `org.jetbrains.kotlin.android`), *Non-Transitive R Classes* y desactivación de `aidl`, `buildConfig` y `shaders` innecesarios. |
+| **Sistema de Build** | **Android Gradle Plugin (AGP)** | `9.0.1` | Soporte **Built-in Kotlin** nativo en `com.android.application`, *Non-Transitive R Classes*, `buildConfig = true` para versionado semántico in-app y optimización de recursos. |
 | **Motor de Construcción** | **Gradle Wrapper** | `9.1.0` | **Configuration Cache** (`org.gradle.configuration-cache=true`) y **Build Cache** (`org.gradle.caching=true`) activados por defecto para ejecuciones TDD sub-segundo. `jvmToolchain(17)` en compilación de bytecode. |
 | **Nivel de API Android** | **`minSdk` / `targetSdk` / `compileSdk`** | `26` / `37` / `37.0` | Cobertura desde Android 8.0 Oreo (iconos adaptativos nativos, `java.time`) hasta Android 17 (`release(37)` con `buildToolsVersion = "37.0.0"`), cumpliendo las políticas más recientes de seguridad e *intents*. |
 | **Interfaz Declarativa** | **Jetpack Compose BOM** + **Material 3** | `2026.03.01` | UI 100 % declarativa, sistema de diseño Material You (esquemas dinámicos y modos claro/oscuro) y previsualización fiel de burbujas de mensajería. |
@@ -76,6 +76,8 @@ flowchart TD
         EXIF["ExifOrientationNormalizer (ExifInterface 1.4.2)"]
         CAM["CameraCaptureFileStore (FileProvider cacheDir)"]
         DEL["ImShareIntentFactory + SystemClipboardAdapter"]
+        DLI["DeepLinkImageCodec (Base64 URL-safe #data=...)"]
+        UPD["GitHubUpdateChecker (Releases API v3 + SemVer)"]
     end
 
     ACT --> NAV
@@ -85,6 +87,9 @@ flowchart TD
     VM --> UC
     VM --> P_DEC
     VM --> P_DEL
+    VM --> DLI
+    VM --> UPD
+    ACT --> DLI
 
     UC --> MOD
     UC --> ENG
@@ -411,14 +416,15 @@ fun resolveEffectiveColumns(
 
 ---
 
-## 4. Capa de Datos, Seguridad y Cero Permisos (`data/`)
+## 4. Capa de Datos, Seguridad, Enlaces HD y Actualizaciones (`data/`)
 
-### 4.1 Modelo de Cero Permisos Invasivos
+### 4.1 Modelo de Seguridad y Cero Permisos Invasivos
 
-`img2asciiIM` aplica **privacidad verificable a nivel de sistema operativo**. El archivo `AndroidManifest.xml` **no declara**:
-- `android.permission.INTERNET` (imposibilidad física y de kernel de exfiltrar imágenes o telemetría).
-- `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` ni `MANAGE_EXTERNAL_STORAGE` (cumplimiento íntegro de *Google Play Photo and Video Permissions Policy*).
-- `android.permission.CAMERA` (al delegar en el contrato seguro de cámara del sistema).
+`img2asciiIM` aplica **privacidad verificable a nivel de arquitectura y sistema operativo**:
+- **Procesamiento de Imágenes 100 % Local y Offline:** Todo el motor de decodificación fotográfica, remuestreo, luminancia, *dithering*, formateo y decodificación de enlaces `#data=...` se ejecuta en la CPU del teléfono en memoria contigua, sin transferir jamás ningún píxel fuera del sandbox del dispositivo.
+- **Uso Exclusivo de Red para Actualizaciones (`RF-08`):** El permiso `android.permission.INTERNET` se utiliza estrictamente para consultar la API pública de GitHub Releases (`api.github.com/repos/laralbir/img2asciiIM/releases/latest`) y abrir la descarga oficial del APK. La aplicación no incluye librerías de analítica, telemetría, SDKs publicitarios ni servidores backend propios.
+- **Cero Permisos de Almacenamiento Global:** No declara `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` ni `MANAGE_EXTERNAL_STORAGE` (cumpliendo íntegramente las políticas más rigurosas de privacidad de Android y *Google Play Photo and Video Permissions Policy*).
+- **Cero Permiso de Cámara en Manifiesto:** No declara `android.permission.CAMERA`, delegando en el contrato de cámara seguro del sistema operativo.
 
 ### 4.2 Las 4 Vías de Ingesta y Defensa *Confused Deputy*
 
@@ -507,6 +513,91 @@ Desde Android 11 (API 30), el filtrado de visibilidad de paquetes impide consult
    - **Telegram:** `org.telegram.messenger` $\to$ `org.thunderdog.challegram` (*Telegram X*) $\to$ `org.telegram.messenger.web` (distribución directa web).
    - **Instagram:** `com.instagram.android` (intentando `ACTION_SEND` `text/plain` protegido por `try / catch (e: ActivityNotFoundException)` y `catch (e: SecurityException)`, con apertura limpia vía `getLaunchIntentForPackage` si el receptor de compartición rechaza texto plano).
 3. **Fallback Universal Garantizado:** Si ninguna variante del paquete destino está instalada en el dispositivo, el adaptador envuelve automáticamente el `Intent` en `Intent.createChooser(sendIntent, title)` abriendo el Share Sheet nativo de Android (`CA-04.3`).
+
+### 4.5 Ingeniería del Codificador Autónomo de Deep Link (`DeepLinkImageCodec`, `RF-07`)
+
+Para superar el bloqueo estricto de subida de imágenes en planes satelitales y *Free In-Flight Messaging* de aerolíneas sin depender de servidores multimedia externos, `img2asciiIM` incorpora una arquitectura de **enlaces autónomos de alta definición (*Self-Contained Deep Links*)** donde la fotografía original viaja comprimida y codificada en Base64 URL-safe dentro del hash fragment de la URL (`#data=...`).
+
+#### 1. Formato de URI y Privacidad Absoluta por Hash Fragment (`#`)
+`https://laralbir.github.io/img2asciiIM/#data=<payload_base64_url_safe>`
+
+- **Aislamiento de Red (RFC 3986):** En el protocolo HTTP estándar, la porción de una URL situada tras el delimitador `#` (*fragment identifier*) **jamás se envía a los servidores web** en la cabecera `GET /...`. En consecuencia, la imagen fotográfica no transita por ningún backend ni servidor intermedio: viaja exclusivamente como texto plano en el mensaje de mensajería instantánea.
+- **Transmisión sobre Canales de Solo Texto:** Los cortafuegos de inspección profunda de paquetes (DPI) de aerolíneas y cruceros bloquean las CDNs de subida de imágenes (`mmg.whatsapp.net`, etc.), pero autorizan el tráfico de texto plano y URLs en los sockets de chat de WhatsApp y Telegram.
+- **Doble Vía de Consumo:**
+  - **Recepción Nativa en Android (`Intent.ACTION_VIEW`):** El `AndroidManifest.xml` registra un `<intent-filter android:autoVerify="true">` asociando el host `laralbir.github.io` y la ruta `/img2asciiIM`. Cuando el receptor toca el enlace, Android despacha el intent hacia `MainActivity`, donde `DeepLinkImageCodec.decodeFromDeepLink()` extrae el payload Base64 y reconstruye el `PixelGrid` original a color en memoria **100 % offline** sin consumir datos de red.
+  - **Visor Web Estático de Respaldo (`docs/index.html`):** Para destinatarios en dispositivos sin la app (iOS, iPadOS, macOS, Windows o Linux), GitHub Pages sirve un visor estático HTML5/Canvas sin backend. El JavaScript del cliente extrae `window.location.hash.substring(6)`, decodifica el Base64 y dibuja la fotografía directamente en un `<canvas>` en el navegador.
+
+#### 2. Conmutación Modular y Reasignación Íntegra de Presupuesto
+
+La interfaz expone dos conmutadores independientes que modifican reactivamente el mensaje generado:
+- `includeTextArt: Boolean` (Arte ASCII o Braille, por defecto `true`).
+- `attachDeepLink: Boolean` (Enlace de alta definición `#data=...`, por defecto `false`).
+
+```mermaid
+flowchart TD
+    CONFIG{"Configuración de Conmutadores en ConverterUiState"}
+    CONFIG -->|"includeTextArt = true\nattachDeepLink = false"| C1["Solo Arte de Texto\nPipelines tradicionales de caracteres\nPresupuesto completo dedicado a filas/columnas"]
+    CONFIG -->|"includeTextArt = true\nattachDeepLink = true"| C2["Modo Híbrido Dual\nArte de texto + Enlace compacto\nCompresión miniatura: max 320 px (calidad 60)\nPayload ~4-10 KB"]
+    CONFIG -->|"includeTextArt = false\nattachDeepLink = true"| C3["Modo Solo Enlace HD (Máxima Nitidez)\n100% del presupuesto de caracteres asignado al payload\nWhatsApp: 640-800 px (calidad 75) - payload ~35-50 KB\nTelegram: 200-240 px (calidad 55) - payload ~2.8-3.8 KB"]
+```
+
+#### 3. Especificación Técnica de los Modos de Envío
+
+| Parámetro / Modo | Modo Dual (Arte + Enlace) | Modo Solo Enlace HD (WhatsApp) | Modo Solo Enlace HD (Telegram) | Modo Instagram Direct |
+| :--- | :--- | :--- | :--- | :--- |
+| **`includeTextArt`** | `true` | `false` | `false` | `true` |
+| **`attachDeepLink`** | `true` | `true` | `true` | `false` *(bloqueado)* |
+| **Resolución Máx.** | `320 px` de lado mayor | **`640–800 px`** de lado mayor | **`200–240 px`** de lado mayor | N/A (solo Braille) |
+| **Calidad JPEG** | `60` | **`75`** | **`50–60`** | N/A |
+| **Tamaño Base64** | `~4–10 KB` | **`~35–50 KB`** | **`~2.800–3.800 chars`** | N/A |
+| **Límite Canal IM** | `65.536` (WA) / `4.096` (TG) | **`65.536` chars** | **`4.096` chars** | **`1.000` chars** |
+| **Mensaje Generado** | `<arte>\n\n🔗 Ver foto en alta definición:\nhttps://...#data=...` | `📸 Ver foto en alta definición:\nhttps://...#data=...` | `📸 Ver foto en alta definición:\nhttps://...#data=...` | `<arte_braille>` |
+
+> [!IMPORTANT]
+> **Invariante de Salvaguarda de Mensaje no Vacío (`CB-08`):**
+> La lógica en `ConverterViewModel` y la UI Compose garantizan que `includeTextArt` y `attachDeepLink` jamás puedan permanecer falsos de forma simultánea. Si el usuario intenta apagar el último conmutador encendido, el sistema reactiva el alternativo o ignora la desactivación, asegurando que el mensaje formateado nunca sea nulo ni vacío.
+
+### 4.6 Sistema de Comprobación y Actualización In-App (`GitHubUpdateChecker`, `RF-08`)
+
+Para garantizar la autonomía del proyecto frente a tiendas de aplicaciones privativas, `img2asciiIM` implementa un cliente nativo ligero para consultar la API de GitHub Releases y gestionar actualizaciones in-app:
+
+#### 1. Consulta REST a la API de GitHub Releases
+- **Endpoint:** `GET https://api.github.com/repos/laralbir/img2asciiIM/releases/latest`
+- **Cabeceras HTTP:**
+  - `Accept: application/vnd.github.v3+json`
+  - `User-Agent: img2asciiIM-Android-App`
+- **Tiempos Límite Estrictos:** `connectTimeout = 4000 ms`, `readTimeout = 4000 ms`.
+- **Extracción de Datos:** Parsea el objeto JSON extrayendo `tag_name`, `body` (notas de la versión en Markdown), `html_url` y recorre la colección `assets` para localizar la URL de descarga directa `browser_download_url` correspondiente al artefacto con sufijo `.apk`.
+
+#### 2. Comparación Semántica de Versiones (`isNewer`)
+La función de comparación analiza formalmente la versión remota contra `BuildConfig.VERSION_NAME`:
+```kotlin
+fun isNewer(remote: String, local: String): Boolean {
+  val rParts = remote.removePrefix("v").removePrefix("V").split('.').mapNotNull { it.toIntOrNull() }
+  val lParts = local.removePrefix("v").removePrefix("V").split('.').mapNotNull { it.toIntOrNull() }
+
+  val maxLen = maxOf(rParts.size, lParts.size)
+  for (i in 0 until maxLen) {
+    val r = rParts.getOrElse(i) { 0 }
+    val l = lParts.getOrElse(i) { 0 }
+    if (r > l) return true
+    if (r < l) return false
+  }
+  return false
+}
+```
+Este algoritmo es insensible a prefijos `v` o `V` y garantiza ordenación estrictamente matemática (ej. `v1.10.0` es mayor que `v1.9.0`), evitando los errores típicos de la comparación lexicográfica de cadenas.
+
+#### 3. Máquina de Estados y Resiliencia Total Offline (`CB-10`)
+El resultado de la verificación se modela como una jerarquía sellada inmutable:
+```kotlin
+sealed interface UpdateCheckResult {
+  data class UpdateAvailable(val releaseInfo: AppReleaseInfo) : UpdateCheckResult
+  data class UpToDate(val currentVersion: String) : UpdateCheckResult
+  data class OfflineOrError(val message: String) : UpdateCheckResult
+}
+```
+En vuelos comerciales o con el dispositivo en **Modo Avión**, el router satelital suele bloquear el acceso al dominio `api.github.com` o redirigir al portal cautivo. El bloque `try / catch` intercepta cualquier `IOException`, socket timeout o respuesta HTTP con código diferente a `200..299` y emite limpiamente `UpdateCheckResult.OfflineOrError("Respuesta de servidor HTTP ...")` o `("Sin conexión a internet")`, sin arrojar excepciones no capturadas al hilo de Compose ni degradar el conversor de imágenes.
 
 ---
 
@@ -648,3 +739,62 @@ flowchart LR
 3. **Puerta de Calidad TDD (`testDebugUnitTest`):** Ejecuta tanto la suite matemática pura de `domain/` como los tests de `ViewModel` con `Turbine` y las pruebas de UI/seguridad sobre **Robolectric** sin requerir aceleración KVM de emulador, abortando el pipeline ante cualquier regresión.
 4. **Verificación de Ensamblado Cruzado (`assembleDebug` + `assembleDebugAndroidTest`):** Garantiza que tanto el APK principal como el APK de pruebas instrumentadas compilan y enlazan recursos sin errores.
 5. **Validación de Automatización DevOps (`bash -n scripts/adb-debug.sh`):** Comprueba estáticamente que el orquestador de depuración USB/Wi-Fi está libre de errores sintácticos de shell.
+
+### 6.4 Pipeline CI/CD de Publicación de Releases Firmadas (`.github/workflows/release.yml`, `RF-08`)
+
+Para garantizar la reproducibilidad y seguridad criptográfica en la distribución de binarios sin depender de tiendas comerciales privativas, el repositorio incorpora un flujo automatizado de CI/CD para compilar, firmar y publicar APKs oficiales ante la creación de etiquetas Git semánticas (`v*.*.*`).
+
+```mermaid
+flowchart LR
+    TAG["Git Tag v*.*.*"] --> CHK["actions/checkout@v4 (fetch-depth: 0)"]
+    CHK --> JDK["setup-java@v4 (Temurin JDK 21)"]
+    JDK --> GRD["gradle/actions/setup-gradle@v4"]
+    GRD --> TST["./gradlew testDebugUnitTest"]
+    TST --> ASM["./gradlew assembleRelease (signingConfigs.release)"]
+    ASM --> SHA["sha256sum img2asciiIM-vX.Y.Z.apk"]
+    SHA --> REL["softprops/action-gh-release@v2 (Release + Checksum + Changelog)"]
+```
+
+#### 1. Configuración Segura de Firma de Release en Gradle (`app/build.gradle.kts`)
+El script de compilación desacopla de forma limpia las claves privadas de producción mediante variables de entorno inyectadas de forma segura por GitHub Actions:
+- **Variables de Entorno Secretas:** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Cuando `KEYSTORE_BASE64` está presente, Gradle decodifica dinámicamente el keystore binario en `build/keystore/release.keystore` antes de firmar el APK de producción.
+- **Fallback Automático para Desarrollo Local:** Si las variables de entorno de producción no están configuradas (por ejemplo, en compilaciones locales de desarrolladores o forks comunitarios), Gradle conmuta automáticamente a la clave `debug.keystore`:
+  ```kotlin
+  signingConfigs {
+    create("release") {
+      val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
+      if (!keystoreBase64.isNullOrBlank()) {
+        val keystoreFile = layout.buildDirectory.file("keystore/release.keystore").get().asFile
+        keystoreFile.parentFile?.mkdirs()
+        keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+        storeFile = keystoreFile
+        storePassword = System.getenv("KEYSTORE_PASSWORD")
+        keyAlias = System.getenv("KEY_ALIAS")
+        keyPassword = System.getenv("KEY_PASSWORD")
+      } else {
+        // Fallback transparente a debug para builds locales
+        val debugSigning = getByName("debug")
+        storeFile = debugSigning.storeFile
+        storePassword = debugSigning.storePassword
+        keyAlias = debugSigning.keyAlias
+        keyPassword = debugSigning.keyPassword
+      }
+    }
+  }
+  ```
+  Esto permite que cualquier ingeniero ejecute `./gradlew assembleRelease` en su máquina local sin necesidad de poseer la clave privada de producción de la organización.
+
+#### 2. Workflow Automatizado en GitHub Actions (`.github/workflows/release.yml`)
+El flujo se activa exclusivamente ante eventos `push: tags: ['v*.*.*']` y ejecuta los siguientes pasos bajo permisos controlados (`contents: write`):
+1. **Entorno Temurin JDK 21:** Resuelve la cadena de herramientas `jvmToolchain(17)` para compilación optimizada de bytecode Android y soporte de Gradle 9.1.
+2. **Puerta de Calidad TDD Obligatoria:** Ejecuta `./gradlew testDebugUnitTest --stacktrace`. Si cualquier test unitario o prueba de integración en Robolectric falla, la publicación se detiene inmediatamente.
+3. **Compilación y Firma:** Ejecuta `./gradlew assembleRelease` consumiendo los secretos del repositorio.
+4. **Cálculo de Checksum Criptográfico SHA-256:**
+   ```bash
+   cp app/build/outputs/apk/release/app-release.apk ./img2asciiIM-${TAG_NAME}.apk
+   sha256sum img2asciiIM-${TAG_NAME}.apk > img2asciiIM-${TAG_NAME}.apk.sha256
+   ```
+5. **Creación de la GitHub Release:** Publica la versión oficial en GitHub con:
+   - El artefacto ejecutable firmado: `img2asciiIM-vX.Y.Z.apk`.
+   - El archivo de verificación de integridad: `img2asciiIM-vX.Y.Z.apk.sha256`.
+   - Notas de versión generadas automáticamente a partir de commits semánticos (`generate_release_notes: true`).

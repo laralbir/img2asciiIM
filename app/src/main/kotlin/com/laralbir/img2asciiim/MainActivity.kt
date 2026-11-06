@@ -5,6 +5,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,6 +29,10 @@ class MainActivity : ComponentActivity() {
     installSplashScreen()
     super.onCreate(savedInstanceState)
 
+    setShowWhenLocked(true)
+    setTurnScreenOn(true)
+    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
     imageSourceRepo = AndroidImageSourceRepository(applicationContext)
     shareGateway = AndroidMessageShareGateway(this)
 
@@ -32,34 +40,45 @@ class MainActivity : ComponentActivity() {
 
     setContent {
       Img2asciiIMTheme {
-        val vm: ConverterViewModel = viewModel(
-          factory = ConverterViewModel.provideFactory(imageSourceRepo, shareGateway),
-        )
-        activeViewModel = vm
+        Surface(
+          modifier = Modifier.fillMaxSize(),
+          color = MaterialTheme.colorScheme.background,
+        ) {
+          val vm: ConverterViewModel = viewModel(
+            factory = ConverterViewModel.provideFactory(imageSourceRepo, shareGateway),
+          )
+          activeViewModel = vm
 
-        ConverterScreen(
-          viewModel = vm,
-          onPrepareCameraCaptureTarget = {
-            imageSourceRepo.cameraCaptureFileManager.createCaptureTarget().uri
-          },
-        )
+          ConverterScreen(
+            viewModel = vm,
+            onPrepareCameraCaptureTarget = {
+              imageSourceRepo.cameraCaptureFileManager.createCaptureTarget().uri
+            },
+          )
+        }
       }
     }
 
-    handleIncomingShare(intent)
+    handleIncomingIntent(intent)
   }
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     setIntent(intent)
-    handleIncomingShare(intent)
+    handleIncomingIntent(intent)
   }
 
-  private fun handleIncomingShare(incomingIntent: Intent?) {
+  private fun handleIncomingIntent(incomingIntent: Intent?) {
     if (incomingIntent == null) return
     if (incomingIntent.action == Intent.ACTION_SEND && incomingIntent.type?.startsWith("image/") == true) {
       lifecycleScope.launch {
         val outcome = imageSourceRepo.decodeIncomingShare(incomingIntent)
+        activeViewModel?.onIncomingShareResult(outcome)
+      }
+    } else if (incomingIntent.action == Intent.ACTION_VIEW && incomingIntent.data != null) {
+      val dataString = incomingIntent.data.toString()
+      lifecycleScope.launch {
+        val outcome = com.laralbir.img2asciiim.data.source.DeepLinkImageCodec().decodeFromDeepLink(dataString)
         activeViewModel?.onIncomingShareResult(outcome)
       }
     }

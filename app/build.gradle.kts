@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
@@ -17,13 +19,46 @@ android {
     minSdk = 26
     targetSdk = 37
     versionCode = 1
-    versionName = "1.0"
+    versionName = "1.0.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  }
+
+  signingConfigs {
+    create("release") {
+      val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
+      val keystorePath = System.getenv("KEYSTORE_PATH")
+      val keyAliasVal = System.getenv("KEY_ALIAS")
+      val keyPasswordVal = System.getenv("KEY_PASSWORD")
+      val storePasswordVal = System.getenv("KEYSTORE_PASSWORD")
+
+      if (!keystoreBase64.isNullOrBlank()) {
+        val keystoreFile = layout.buildDirectory.file("keystore/release.keystore").get().asFile
+        keystoreFile.parentFile?.mkdirs()
+        keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+        storeFile = keystoreFile
+        storePassword = storePasswordVal
+        keyAlias = keyAliasVal
+        keyPassword = keyPasswordVal
+      } else if (!keystorePath.isNullOrBlank() && file(keystorePath).exists()) {
+        storeFile = file(keystorePath)
+        storePassword = storePasswordVal
+        keyAlias = keyAliasVal
+        keyPassword = keyPasswordVal
+      } else {
+        // Fallback to debug keystore for development / local assembleRelease builds
+        val debugSigning = getByName("debug")
+        storeFile = debugSigning.storeFile
+        storePassword = debugSigning.storePassword
+        keyAlias = debugSigning.keyAlias
+        keyPassword = debugSigning.keyPassword
+      }
+    }
   }
 
   buildTypes {
     release {
       isMinifyEnabled = false
+      signingConfig = signingConfigs.getByName("release")
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
   }
@@ -34,7 +69,7 @@ android {
   buildFeatures {
     compose = true
     aidl = false
-    buildConfig = false
+    buildConfig = true
     shaders = false
   }
   testOptions {

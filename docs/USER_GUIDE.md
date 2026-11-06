@@ -13,8 +13,11 @@
 3. [Paso 1: Cómo Elegir o Capturar tu Imagen (4 Formas)](#3-paso-1-cómo-elegir-o-capturar-tu-imagen-4-formas)
 4. [Paso 2: Elegir la App de Destino (WhatsApp, Telegram o Instagram)](#4-paso-2-elegir-la-app-de-destino-whatsapp-telegram-o-instagram)
 5. [Paso 3: Ajustar el Estilo y la Nitidez (Recetas Rápidas)](#5-paso-3-ajustar-el-estilo-y-la-nitidez-recetas-rápidas)
-6. [Paso 4: Enviar en 1 Toque o Copiar al Portapapeles](#6-paso-4-enviar-en-1-toque-o-copiar-al-portapapeles)
-7. [Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos](#7-preguntas-frecuentes-faq-y-solución-de-problemas-rápidos)
+6. [Paso 4: Elegir Qué Enviar (Arte de Texto y/o Enlace a Foto HD)](#6-paso-4-elegir-qué-enviar-arte-de-texto-yo-enlace-a-foto-hd)
+7. [Paso 5: Enviar en 1 Toque o Copiar al Portapapeles](#7-paso-5-enviar-en-1-toque-o-copiar-al-portapapeles)
+8. [Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#data=...`)](#8-cómo-funciona-el-enlace-hd-autónomo-y-el-visor-web-data)
+9. [Comprobación y Actualizaciones In-App desde GitHub Releases](#9-comprobación-y-actualizaciones-in-app-desde-github-releases)
+10. [Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos](#10-preguntas-frecuentes-faq-y-solución-de-problemas-rápidos)
 
 ---
 
@@ -91,7 +94,8 @@ El flujo completo en `img2asciiIM` está pensado para que pases de una foto a un
 flowchart TD
     Paso1["Paso 1: Elige o haz tu foto (Galería, Archivos/Drive, Cámara o Compartir)"] --> Paso2["Paso 2: Elige la app de destino (WhatsApp, Telegram o Instagram)"]
     Paso2 --> Paso3["Paso 3: Ajusta estilo, tema Claro/Oscuro y nitidez en vivo"]
-    Paso3 --> Paso4["Paso 4: Pulsa Enviar o Copiar en 1 toque"]
+    Paso3 --> Paso4["Paso 4: Elige qué enviar (Arte ASCII/Braille y/o Enlace a foto HD)"]
+    Paso4 --> Paso5["Paso 5: Pulsa Enviar o Copiar en 1 toque"]
 ```
 
 Tienes **cuatro maneras** igual de cómodas de cargar una imagen (y si abres cualquiera de ellas por error y pulsas *Atrás*, la imagen y los ajustes que ya tuvieras en pantalla se conservan intactos):
@@ -194,31 +198,162 @@ Por eso, si envías un retrato pensado para fondo claro a alguien que usa Modo O
 
 ---
 
-## 6. Paso 4: Enviar en 1 Toque o Copiar al Portapapeles
+## 6. Paso 4: Elegir Qué Enviar (Arte de Texto y/o Enlace a Foto HD)
 
-Cuando la vista previa de burbuja se vea a tu gusto, tienes dos acciones directas en la parte inferior:
+Justo debajo de los controles de nitidez encontrarás la sección **Componentes del mensaje**, que te permite decidir exactamente qué quieres incluir en el chat mediante dos casillas independientes:
+
+- **`[x] Incluir arte de texto (ASCII / Braille)`**
+- **`[x] Adjuntar enlace a foto HD (#data=...)`**
+
+```mermaid
+flowchart TD
+    Eleccion{"¿Qué componentes activas en Paso 4?"}
+    Eleccion -->|"Solo Arte de Texto"| Modo1["Modo Clásico (Ultraligero)\nMensaje de texto puro (2-4 KB)\nMáxima privacidad y compatibilidad"]
+    Eleccion -->|"Arte + Enlace HD"| Modo2["Modo Híbrido Dual\nDibujo en la burbuja + Enlace debajo\nMiniatura compacta (~320 px)"]
+    Eleccion -->|"Solo Enlace HD"| Modo3["Modo Enlace HD Puro (Máxima Nitidez)\nTodo el presupuesto para la foto\nWhatsApp: 640-800 px (calidad 75)\nTelegram: 200-240 px (calidad 55)"]
+```
+
+### Los 3 Modos de Envío según tu Necesidad
+
+#### 1. Modo Clásico: Solo Arte de Texto *(Opción por Defecto)*
+- **Ajuste:** `[x] Incluir arte de texto` activado · `[ ] Adjuntar enlace a foto HD` desactivado.
+- **Resultado:** Tu mensaje se compone únicamente del dibujo en puntos Braille, caracteres ASCII o bloques.
+- **Cuándo usarlo:** Cuando quieras enviar un mensaje ultraligero (apenas `2` a `4 KB`), sin enlaces web de ningún tipo, perfecto para el canal de texto más básico del avión o cuando tu contacto solo necesita ver el dibujo en su pantalla al instante.
+
+#### 2. Modo Híbrido: Arte de Texto + Enlace a Foto HD
+- **Ajuste:** `[x] Incluir arte de texto` activado · `[x] Adjuntar enlace a foto HD` activado.
+- **Resultado:** El mensaje muestra el dibujo en texto en la burbuja del chat y, tras un doble salto de renglón, añade el enlace oficial:
+  ```text
+  <dibujo en braille o ascii>
+
+  🔗 Ver foto en alta definición:
+  https://laralbir.github.io/img2asciiIM/#data=...
+  ```
+- **Cuándo usarlo:** Quieres el impacto visual inmediato del dibujo en el chat, pero además ofreces a tu contacto la posibilidad de abrir la foto original a color si pulsa el enlace.
+- **Detalle técnico:** En este modo, la imagen del enlace se comprime en tamaño miniatura (**hasta 320 px a calidad 60**) para que la suma del arte de texto y del enlace Base64 URL-safe quepa con total holgura dentro del límite de la plataforma.
+
+#### 3. Modo Enlace HD Puro: Máxima Nitidez Fotográfica *(Sin Arte de Texto)*
+- **Ajuste:** `[ ] Incluir arte de texto` desactivado · `[x] Adjuntar enlace a foto HD` activado.
+- **El secreto:** Al apagar el dibujo de texto, **todo el presupuesto de caracteres de la app de mensajería se dedica íntegramente a la fotografía incrustada en el enlace**.
+- **Resoluciones fotográficas alcanzadas:**
+  - **En WhatsApp:** WhatsApp admite mensajes de hasta **`65.536` caracteres**. Al no restar espacio con caracteres de arte, `img2asciiIM` escala y comprime la foto a resoluciones de **`640` a `800` píxeles a calidad 75** (generando un payload Base64 de entre `35` y `50 KB`, que viaja holgadamente dentro del límite permitido).
+  - **En Telegram:** Telegram limita cada mensaje a **`4.096` caracteres**. Sin arte de texto, la app escala la foto a **`200` a `240` píxeles a calidad 50–60** (~`2.800–3.800` caracteres Base64), asegurando que el mensaje completo entre en una **única burbuja sin cortarse**.
+- **El resultado en el chat:** Tu mensaje queda completamente limpio, profesional y directo:
+  ```text
+  📸 Ver foto en alta definición:
+  https://laralbir.github.io/img2asciiIM/#data=...
+  ```
+
+> [!TIP]
+> **Salvaguarda de mensaje no vacío:** La aplicación nunca te dejará desmarcar las dos casillas a la vez. Si intentas apagar la última que queda encendida, el sistema mantendrá activa una de ellas para garantizar que jamás mandes un mensaje en blanco por error.
+
+> [!NOTE]
+> **¿Por qué en Instagram Direct el enlace HD aparece desactivado?**
+> Instagram Direct impone un límite estricto de **`1.000` caracteres / 1.000 bytes** por mensaje de texto. En un espacio tan reducido es matemáticamente imposible incrustar una fotografía en Base64 sin recortarla. Por eso, en el perfil de Instagram la app desactiva automáticamente el conmutador de enlace HD y prioriza el arte en Braille de alta precisión, que luce espectacular y respeta los `1.000` caracteres al milímetro.
+
+---
+
+## 7. Paso 5: Enviar en 1 Toque o Copiar al Portapapeles
+
+Cuando la vista previa de burbuja y los componentes seleccionados se vean a tu gusto, tienes dos acciones directas en la parte inferior:
 
 ### Opción A: Botón «Enviar a WhatsApp / Telegram / Instagram»
 - Lanza directamente la aplicación de mensajería seleccionada con tu mensaje preparado para que solo tengas que **tocar el chat de tu contacto y pulsar Enviar**.
-- Si utilizas una variante oficial (como **WhatsApp Business**) o en ese teléfono no tienes instalada esa aplicación concreta, `img2asciiIM` abrirá automáticamente el menú estándar **Compartir** de Android para que puedas enviarlo por cualquier otra vía sin errores.
+- Si utilizas una variante oficial (como **WhatsApp Business** o **Telegram X**) o en ese teléfono no tienes instalada esa aplicación concreta, `img2asciiIM` abrirá automáticamente el menú estándar **Compartir** de Android para que puedas enviarlo por cualquier otra vía sin errores.
 
 > [!NOTE]
 > **¿Cómo funciona el envío rápido a Instagram Direct (*Copiado Automático*)?**
-> Por limitaciones propias de la app de Instagram en Android, algunas versiones de Instagram abren la lista de chats pero ignoran los textos externos cuando no contienen un enlace web.
+> Por limitaciones propias de la app de Instagram en Android, algunas versiones abren la lista de chats pero ignoran los textos externos cuando no contienen un enlace web tradicional.
 > Para que nunca pierdas un segundo, al pulsar **«Enviar a Instagram»**, `img2asciiIM` **guarda siempre primero tu arte en el portapapeles de forma automática** antes de abrir Instagram:
 > 1. Si Instagram rellena el mensaje solo, simplemente elige a tu contacto y envíalo.
 > 2. Si Instagram abre tus mensajes directos en blanco, entra en el chat de la persona, **mantén pulsado el cuadro *«Enviar mensaje…»*** y toca **Pegar**. ¡Tu imagen en Braille aparecerá entera y lista para enviar!
 
 ### Opción B: Botón «Copiar»
-- Copia el resultado exacto al portapapeles de Android en **1 solo toque** (notarás una suave vibración de confirmación y el aviso del sistema).
+- Copia el resultado exacto al portapapeles de Android en **1 solo toque** (notarás una suave vibración de confirmación y el aviso en pantalla).
 - Es comodísimo cuando:
   - Ya tienes la conversación abierta en segundo plano y prefieres cambiar de app y pegar manualmente.
-  - Quieres pegar el dibujo en **otra app compatible con el Wi-Fi del avión** (como Facebook Messenger, Google Messages, Signal, Slack o notas personales).
+  - Quieres pegar el dibujo o el enlace en **otra app compatible con el Wi-Fi del avión** (como Facebook Messenger, Google Messages, Signal, Slack o notas personales).
   - En **Telegram** has elegido expresamente el modo **ASCII clásico** con bloque ```` ``` ```` y quieres pegarlo directamente en la caja de escritura del chat para que Telegram aplique el formato de código al instante.
 
 ---
 
-## 7. Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos
+## 8. Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#data=...`)
+
+Tal vez te preguntes: *¿Cómo es posible enviar una foto dentro de un enlace web si el Wi-Fi del avión tiene bloqueada la subida de fotos y no me deja navegar por páginas web?*
+
+### El Secreto: La Imagen Viaja DENTRO de las Letras del Enlace
+
+En un sistema convencional de internet, para mandar una foto tienes que subirla a un servidor (Google Drive, Imgur, servidores de WhatsApp) y mandar un enlace a ese servidor (`https://servidor.com/mi-foto.jpg`). En el avión, ese servidor está bloqueado, por lo que la foto nunca llega.
+
+En cambio, `img2asciiIM` genera un **enlace 100 % autónomo y autosuficiente**:
+
+```text
+https://laralbir.github.io/img2asciiIM/#data=UklGRvAAAABXRUJQVlA4...
+```
+
+1. Toda la imagen fotográfica (comprimida en JPEG/WebP) se traduce a una secuencia de letras y números llamada **Base64 URL-safe**.
+2. Esa secuencia se coloca detrás del símbolo de almohadilla **`#data=`** (*hash fragment*).
+3. Para el router del avión y para la aplicación de chat, ese enlace es simplemente **un mensaje de texto plano ordinario**, por lo que **atraviesa el cortafuegos satelital sin ningún bloqueo**.
+4. La parte detrás del `#` jamás se transmite a ningún servidor de internet ni a terceros: se procesa íntegramente en el dispositivo de quien abre el enlace.
+
+### Qué Ocurre Cuando tu Amigo Abre el Enlace
+
+El enlace funciona para cualquier persona y en cualquier dispositivo:
+
+```mermaid
+flowchart TD
+    Enlace["Tu amigo pulsa el enlace https://laralbir.github.io/img2asciiIM/#data=..."]
+    Enlace --> Dispositivo{"¿Tiene instalada img2asciiIM en su Android?"}
+    Dispositivo -- "SÍ" --> Nativo["Apertura directa en img2asciiIM (Deep Link)\nReconstrucción en pantalla en milisegundos\n100% OFFLINE (Cero gasto de datos)"]
+    Dispositivo -- "NO (o usa iPhone / PC)" --> Web["Abre en navegador web (Chrome, Safari, Firefox)\nVisor estático HTML5 / Canvas en docs/index.html\nDecodifica el hash en pantalla sin servidor externo"]
+```
+
+- **Si tu contacto tiene `img2asciiIM` en Android:**
+  Android detecta el enlace automáticamente (`Intent.ACTION_VIEW`), abre la app de inmediato, extrae los datos y **dibuja la fotografía original en alta definición a todo color**, sin necesidad de internet y sin gastar ni un solo megabyte de datos.
+- **Si tu contacto no tiene la app instalada (o usa iPhone, iPad o PC):**
+  El enlace se abre en su navegador web preferido (Safari, Chrome, Edge, Firefox). Una página web estática ultraligera alojada en GitHub Pages lee el fragmento `#data=...` con JavaScript directamente en el navegador del usuario y **proyecta la fotografía en pantalla** en menos de una décima de segundo, ofreciendo además un enlace para descargar la app en Android si lo desea.
+
+---
+
+## 9. Comprobación y Actualizaciones In-App desde GitHub Releases
+
+`img2asciiIM` es un proyecto de software libre y privado que no depende de los servicios privativos de **Google Play Store**. Para que siempre disfrutes de las últimas mejoras y correcciones sin complicaciones, la aplicación incluye su propio **sistema nativo de comprobación y actualización in-app**:
+
+### Cómo Comprobar si Hay una Versión Nueva
+
+1. Toca el menú de tres puntos o el botón **«Comprobar actualizaciones»** en la barra superior de `img2asciiIM`.
+2. La app consultará de forma segura el repositorio oficial en GitHub (`https://api.github.com/repos/laralbir/img2asciiIM/releases/latest`).
+3. Si estás usando la última versión, verás un mensaje confirmando que tu versión (`v1.0.0`) está al día.
+4. Si hay una versión más moderna disponible (por ejemplo, `v1.1.0`), aparecerá una tarjeta con:
+   - El número de versión nueva.
+   - Las **notas de la versión** explicando qué mejoras incluye.
+   - Un botón **«Descargar APK»** que descarga directamente el instalador oficial firmado.
+
+### Resiliencia Total en Modo Avión y Vuelos
+
+> [!IMPORTANT]
+> **Cero fallos ni congelaciones en pleno vuelo:**
+> Si pulsas comprobar actualizaciones mientras estás en **Modo Avión**, en el desierto o conectado al Wi-Fi del avión (que suele bloquear el acceso a las APIs de GitHub), la aplicación aplica un tiempo límite ultracorto (**4 segundos**) y cancela la petición silenciosamente con un aviso amigable (*«Sin conexión para comprobar actualizaciones»*). La app jamás se bloquea, no muestra errores técnicos ni interrumpe la conversión de tus fotos.
+
+### Seguridad y Verificación Criptográfica (SHA-256)
+
+Cada actualización oficial de `img2asciiIM` se compila y firma automáticamente mediante un flujo verificado de **Integración Continua (CI/CD)** en GitHub Actions:
+- Cada archivo APK publicado viene acompañado de su archivo de suma criptográfica **`SHA-256`** (`img2asciiIM-vX.Y.Z.apk.sha256`).
+- Esto garantiza que el instalador que descargas es exactamente el mismo que se compiló a partir del código fuente público, sin modificaciones de terceros ni malware.
+
+---
+
+## 10. Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos
+
+### «¿El enlace de foto HD gasta datos de mi bono satelital o del Wi-Fi del avión?»
+**Cero datos extra.** Como la foto va codificada en texto dentro del propio enlace, viaja por el canal de texto plano autorizado por la aerolínea. Al enviarlo no se conecta a servidores multimedia, y cuando el destinatario tiene la app instalada, la imagen se reconstruye en su memoria sin descargar nada de internet.
+
+---
+
+### «¿Por qué se ve mejor la foto cuando apago el conmutador de arte de texto?»
+Al desactivar el arte de texto (ASCII / Braille), el mensaje no tiene que reservar caracteres para dibujar filas de puntos. Todo el cupo disponible (hasta **`65.536` caracteres en WhatsApp**) pasa a estar disponible para la foto del enlace, permitiendo a la app comprimir la imagen con una resolución mucho mayor (**`640` a `800` píxeles**) y una calidad fotográfica visiblemente superior.
+
+---
 
 ### «Mi amigo me dice que ve las líneas partidas en dos renglones o la imagen "descuadrada"»
 **Causa:** Cada fila de tu dibujo es un poquito más ancha que la burbuja de chat del móvil de tu amigo (ocurre cuando su teléfono tiene la pantalla estrecha o lleva activada la opción de **Tamaño de fuente grande** en los ajustes de accesibilidad de Android/iPhone).  
@@ -242,7 +377,12 @@ Cuando la vista previa de burbuja se vea a tu gusto, tienes dos acciones directa
 
 ### «En WhatsApp el mensaje sale con un botón "Leer más" abajo»
 **Causa:** WhatsApp pliega visualmente cualquier mensaje de más de unas `15–20` líneas para no ocupar toda la pantalla del chat de golpe.  
-**Solución:** No está cortado: en cuanto tu contacto toca **«Leer más»**, la burbuja se despliega entera manteniendo la alineación perfecta. Si prefieres que tu imagen se vea completa desde el primer vistazo sin tener que pulsar *«Leer más»*, reduce ligeramente el **Ancho** (al bajar el ancho también disminuye el número de filas de alto manteniendo la proporción).
+**Solución:** No está cortado: en cuanto tu contacto toca **«Leer más»**, la burbuja se despliega entera manteniendo la alineación perfecta. Si prefieres que tu imagen se vea completa desde el primer vistazo sin tener que pulsar *«Leer más»*, reduce ligeramente el **Ancho** (al bajar el ancho también disminuye el número de filas de alto manteniendo la proporción) o usa el modo **Solo Enlace HD** que envía un texto de apenas 2 líneas.
+
+---
+
+### «¿Cómo sé si tengo la versión más reciente de `img2asciiIM` si no uso Google Play?»
+Solo tienes que tocar el icono de menú o el botón **«Comprobar actualizaciones»** en la parte superior de la app. Si tienes conexión a internet en tierra o Wi-Fi normal, la app te avisará al instante de si existe una versión más nueva en GitHub Releases y te permitirá descargarla en 1 toque.
 
 ---
 

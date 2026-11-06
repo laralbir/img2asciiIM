@@ -1,5 +1,6 @@
 package com.laralbir.img2asciiim.ui.converter
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -26,16 +27,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -68,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -78,7 +84,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.laralbir.img2asciiim.BuildConfig
 import com.laralbir.img2asciiim.R
+import com.laralbir.img2asciiim.data.update.UpdateCheckResult
 import com.laralbir.img2asciiim.domain.model.CharsetMode
 import com.laralbir.img2asciiim.domain.model.DitherMode
 import com.laralbir.img2asciiim.domain.model.ImPlatformPreset
@@ -103,6 +111,10 @@ object ConverterTestTags {
   const val SLIDER_BRIGHTNESS = "slider_brightness"
   const val SLIDER_CONTRAST = "slider_contrast"
   const val TOGGLE_INVERT = "toggle_invert_switch"
+  const val CHIP_INCLUDE_ASCII = "chip_include_ascii"
+  const val CHIP_ATTACH_DEEP_LINK = "chip_attach_deep_link"
+  const val BTN_CHECK_UPDATES = "btn_check_updates"
+  const val HD_MODE_EXPANDED_CARD = "hd_mode_expanded_card"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -176,6 +188,23 @@ fun ConverterScreen(
           }
         },
         modifier = Modifier.testTag(ConverterTestTags.TOP_BAR),
+        actions = {
+          IconButton(
+            onClick = { viewModel.onCheckForUpdates(BuildConfig.VERSION_NAME) },
+            enabled = !uiState.isCheckingUpdate,
+            modifier = Modifier.testTag(ConverterTestTags.BTN_CHECK_UPDATES),
+          ) {
+            if (uiState.isCheckingUpdate) {
+              CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+              Icon(
+                imageVector = Icons.Default.SystemUpdate,
+                contentDescription = "Buscar actualizaciones en GitHub",
+                tint = MaterialTheme.colorScheme.primary,
+              )
+            }
+          }
+        },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
           containerColor = MaterialTheme.colorScheme.surface,
           titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -192,6 +221,71 @@ fun ConverterScreen(
       )
     },
   ) { innerPadding ->
+    val context = LocalContext.current
+    uiState.updateCheckResult?.let { updateOutcome ->
+      when (updateOutcome) {
+        is UpdateCheckResult.UpdateAvailable -> {
+          AlertDialog(
+            onDismissRequest = viewModel::onDismissUpdateDialog,
+            title = { Text("Nueva versión disponible (${updateOutcome.releaseInfo.tagName})") },
+            text = {
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Hay una nueva versión de img2asciiIM en GitHub Releases:")
+                if (updateOutcome.releaseInfo.releaseNotes.isNotBlank()) {
+                  Text(
+                    text = updateOutcome.releaseInfo.releaseNotes.take(300),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
+              }
+            },
+            confirmButton = {
+              Button(
+                onClick = {
+                  viewModel.onDismissUpdateDialog()
+                  val url = updateOutcome.releaseInfo.apkDownloadUrl ?: updateOutcome.releaseInfo.htmlUrl
+                  val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                  context.startActivity(intent)
+                },
+              ) {
+                Text("Descargar APK")
+              }
+            },
+            dismissButton = {
+              OutlinedButton(onClick = viewModel::onDismissUpdateDialog) {
+                Text("Más tarde")
+              }
+            },
+          )
+        }
+        is UpdateCheckResult.UpToDate -> {
+          AlertDialog(
+            onDismissRequest = viewModel::onDismissUpdateDialog,
+            title = { Text("Estás al día") },
+            text = { Text("Tienes instalada la versión más reciente (${updateOutcome.currentVersion}).") },
+            confirmButton = {
+              Button(onClick = viewModel::onDismissUpdateDialog) {
+                Text("Aceptar")
+              }
+            },
+          )
+        }
+        is UpdateCheckResult.OfflineOrError -> {
+          AlertDialog(
+            onDismissRequest = viewModel::onDismissUpdateDialog,
+            title = { Text("Comprobación de actualización") },
+            text = { Text(updateOutcome.message) },
+            confirmButton = {
+              Button(onClick = viewModel::onDismissUpdateDialog) {
+                Text("Aceptar")
+              }
+            },
+          )
+        }
+      }
+    }
+
     Column(
       modifier = Modifier
         .fillMaxSize()
@@ -272,13 +366,22 @@ fun ConverterScreen(
         onSelectCharset = viewModel::onSelectCharsetMode,
       )
 
-      // 5. Chat Bubble Preview Card
+      // 5. Opciones de Entrega y Enlace HD
+      DeliveryOptionsSection(
+        preset = uiState.params.preset,
+        includeAsciiArt = uiState.includeAsciiArt,
+        attachDeepLink = uiState.attachDeepLink,
+        onToggleIncludeAsciiArt = viewModel::onToggleIncludeAsciiArt,
+        onToggleAttachDeepLink = viewModel::onToggleAttachDeepLink,
+      )
+
+      // 6. Chat Bubble Preview Card
       ChatBubblePreviewSection(
         uiState = uiState,
         onToggleTheme = viewModel::onTogglePreviewBubbleTheme,
       )
 
-      // 6. Photographic & Dither Adjustments
+      // 7. Photographic & Dither Adjustments
       AdjustmentsSection(
         params = uiState.params,
         onWidthChanged = viewModel::onWidthColumnsChanged,
@@ -599,8 +702,16 @@ private fun ChatBubblePreviewSection(
             .horizontalScroll(rememberScrollState()),
         ) {
           SelectionContainer {
+            val previewContent = if (!uiState.includeAsciiArt) {
+              "📸 [Foto en Alta Resolución]\n\nEl arte ASCII/Braille ha sido omitido del mensaje para destinar todos los bytes del canal a la fotografía original en alta definición.\n\n🔗 Enlace generado (#data=...):\nhttps://laralbir.github.io/img2asciiIM/#data=..."
+            } else if (uiState.attachDeepLink) {
+              "${result?.formattedMessage.orEmpty()}\n\n🔗 Ver foto en alta definición:\nhttps://laralbir.github.io/img2asciiIM/#data=..."
+            } else {
+              result?.formattedMessage.orEmpty()
+            }
+
             Text(
-              text = result?.formattedMessage.orEmpty(),
+              text = previewContent,
               fontFamily = FontFamily.Monospace,
               fontSize = 10.sp,
               lineHeight = 10.sp,
@@ -608,7 +719,9 @@ private fun ChatBubblePreviewSection(
               modifier = Modifier
                 .testTag(ConverterTestTags.ASCII_TEXT)
                 .clearAndSetSemantics {
-                  contentDescription = if (result != null) {
+                  contentDescription = if (!uiState.includeAsciiArt) {
+                    "Modo solo enlace de alta resolución"
+                  } else if (result != null) {
                     "Arte de texto con ${result.columns} columnas y ${result.rows} filas, longitud ${result.charCount} caracteres."
                   } else {
                     "Sin arte generado"
@@ -843,6 +956,79 @@ private fun BottomActionControls(
           Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
           Spacer(modifier = Modifier.width(8.dp))
           Text(stringResource(R.string.btn_share, preset.displayName))
+        }
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DeliveryOptionsSection(
+  preset: ImPlatformPreset,
+  includeAsciiArt: Boolean,
+  attachDeepLink: Boolean,
+  onToggleIncludeAsciiArt: (Boolean) -> Unit,
+  onToggleAttachDeepLink: (Boolean) -> Unit,
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Text(
+      text = "Opciones de Entrega y Enlace HD",
+      style = MaterialTheme.typography.titleMedium,
+      modifier = Modifier.semantics { heading() },
+    )
+
+    FlowRow(
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+      FilterChip(
+        selected = includeAsciiArt,
+        onClick = { onToggleIncludeAsciiArt(!includeAsciiArt) },
+        label = { Text("Arte de texto (ASCII / Braille)") },
+        leadingIcon = {
+          if (includeAsciiArt) {
+            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+          }
+        },
+        modifier = Modifier.testTag(ConverterTestTags.CHIP_INCLUDE_ASCII),
+      )
+
+      FilterChip(
+        selected = attachDeepLink,
+        onClick = { onToggleAttachDeepLink(!attachDeepLink) },
+        label = { Text("Enlace a foto HD (#data=...)") },
+        leadingIcon = {
+          Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(16.dp))
+        },
+        enabled = preset != ImPlatformPreset.INSTAGRAM_DIRECT,
+        modifier = Modifier.testTag(ConverterTestTags.CHIP_ATTACH_DEEP_LINK),
+      )
+    }
+
+    if (!includeAsciiArt && attachDeepLink) {
+      Card(
+        modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.HD_MODE_EXPANDED_CARD),
+        colors = CardDefaults.cardColors(
+          containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+          contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+      ) {
+        Row(
+          modifier = Modifier.padding(10.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp),
+          )
+          Text(
+            text = "Modo Enlace HD Activo: Al omitir el arte ASCII, se reservan todos los bytes del mensaje para la foto original (hasta 720 px a calidad 75 en WhatsApp).",
+            style = MaterialTheme.typography.bodySmall,
+          )
         }
       }
     }

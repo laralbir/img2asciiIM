@@ -544,6 +544,114 @@ class ConverterViewModelTest {
         .create(ConverterViewModel::class.java)
       assertNotNull(factoryVm)
     }
+
+  @Test
+  fun togglingAttachDeepLinkAppendsUrlToFormattedMessage() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun encodeToDeepLink(
+        pixelGrid: PixelGrid,
+        mode: com.laralbir.img2asciiim.data.source.DeepLinkMode,
+        preset: ImPlatformPreset,
+      ): String = "https://laralbir.github.io/img2asciiIM/#data=fake_payload"
+    }
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    // By default, attachDeepLink is false
+    assertFalse(viewModel.uiState.value.attachDeepLink)
+    val standardMessage = viewModel.buildShareableMessage()
+    assertNotNull(standardMessage)
+    assertFalse(standardMessage.contains("https://laralbir.github.io/img2asciiIM/#data="))
+
+    // Toggle on attachDeepLink
+    viewModel.onToggleAttachDeepLink(true)
+    assertTrue(viewModel.uiState.value.attachDeepLink)
+
+    val linkedMessage = viewModel.buildShareableMessage()
+    assertNotNull(linkedMessage)
+    assertTrue(linkedMessage.contains("https://laralbir.github.io/img2asciiIM/#data=fake_payload"))
+    assertTrue(linkedMessage.contains("🔗 Ver foto en alta definición:"))
+
+    // Sharing sends the linked message
+    viewModel.onShareClicked()
+    advanceUntilIdle()
+    assertEquals(linkedMessage, shareGateway.lastSharedText)
+  }
+
+  @Test
+  fun togglingOffAsciiArtEnablesExpandedHdDeepLinkWithoutAsciiArt() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeCodec = object : com.laralbir.img2asciiim.data.source.DeepLinkImageCodec() {
+      override fun encodeToDeepLink(
+        pixelGrid: PixelGrid,
+        mode: com.laralbir.img2asciiim.data.source.DeepLinkMode,
+        preset: ImPlatformPreset,
+      ): String = "https://laralbir.github.io/img2asciiIM/#data=fake_hd_payload"
+    }
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    // User chooses to exclude ASCII art preview to allocate all bytes to the HD photo
+    viewModel.onToggleIncludeAsciiArt(false)
+    assertFalse(viewModel.uiState.value.includeAsciiArt)
+    // attachDeepLink automatically becomes true
+    assertTrue(viewModel.uiState.value.attachDeepLink)
+
+    val message = viewModel.buildShareableMessage()
+    assertNotNull(message)
+    assertEquals(
+      "📸 Ver foto en alta resolución:\nhttps://laralbir.github.io/img2asciiIM/#data=fake_hd_payload",
+      message,
+    )
+    // Must NOT contain braille or ascii blocks
+    assertFalse(message.contains("```"))
+    assertFalse(message.contains("\n\n🔗 Ver foto"))
+
+    viewModel.onCopyClicked()
+    advanceUntilIdle()
+    assertEquals(message, shareGateway.lastCopiedText)
+  }
+
+  @Test
+  fun cannotTurnOffBothAsciiArtAndDeepLinkSimultaneously() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    // Turn off ASCII art -> deep link turns on
+    viewModel.onToggleIncludeAsciiArt(false)
+    assertFalse(viewModel.uiState.value.includeAsciiArt)
+    assertTrue(viewModel.uiState.value.attachDeepLink)
+
+    // Attempting to turn off deep link while ASCII art is off forces ASCII art back on
+    viewModel.onToggleAttachDeepLink(false)
+    assertTrue(viewModel.uiState.value.includeAsciiArt)
+    assertFalse(viewModel.uiState.value.attachDeepLink)
+  }
 }
 
 private class FakeImageSourceRepository(

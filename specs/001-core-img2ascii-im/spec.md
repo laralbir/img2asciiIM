@@ -50,6 +50,8 @@ Los conversores de imagen a ASCII existentes fracasan en este contexto por cuatr
 | **HU-04** | `P0` | **Como** usuario de WhatsApp, Telegram o Instagram Direct, **quiero** elegir el perfil de mi app de destino, **para** que el formato tipográfico y la longitud del mensaje respeten automáticamente sus reglas (`65.536`, `4.096` o `1.000` caracteres, con o sin ```` ``` ````). | Cero mensajes truncados o deformados |
 | **HU-05** | `P0` | **Como** pasajero conectado solo al plan de mensajería del avión, **quiero** enviar el texto directamente a la app elegida o copiarlo en 1 toque sin requerir internet para la conversión, **para** transmitir información visual cuando el envío de fotos está bloqueado. | Comunicación visual sobre canal de solo texto |
 | **HU-06** | `P0` | **Como** usuario de Android moderno (incluyendo Pixel Launcher con iconos temáticos y tema claro/oscuro), **quiero** que `img2asciiIM` cuente con un icono adaptativo y monocromo propio, imágenes de lanzamiento (*launch/branding*) y una *Splash Screen* nativa instantánea sin pantallas en blanco ni demoras artificiales, **para** percibir una experiencia pulida desde el primer fotograma. | Identidad visual nativa y arranque instantáneo |
+| **HU-07** | `P0` | **Como** usuario que desea compartir fotografías de alta nitidez sobre canales de texto, **quiero** poder elegir si incluir o no el arte de texto (ASCII/Braille) y si adjuntar un enlace autónomo HD (`#data=...`), **para** que cuando desactive el arte, todo el presupuesto de caracteres de WhatsApp o Telegram se asigne a maximizar la resolución de la imagen (640–800 px en WhatsApp, 200–240 px en Telegram). | Envío híbrido y alta definición autónoma |
+| **HU-08** | `P0` | **Como** usuario fuera de tiendas comerciales, **quiero** comprobar in-app la disponibilidad de nuevas versiones oficiales desde GitHub Releases y actualizar mi APK firmado de forma asistida y segura, **para** mantenerme actualizado con total resiliencia sin fallos en vuelo. | Actualizaciones in-app y CI/CD firmado |
 
 ---
 
@@ -259,53 +261,79 @@ La aplicación **debe** garantizar un diseño ergonómico adaptable tanto al sis
   - **When:** Se observa la vista previa del mensaje o se ajusta el slider de columnas.
   - **Then:** La interfaz muestra una advertencia visual destacada indicando que superar ~32 columnas provocará saltos de línea automáticos y deformación en clientes móviles de mensajería instantánea como WhatsApp y Telegram, sugiriendo usar 28–32 columnas o el modo Braille HD.
 
-### RF-07: Generación y Decodificación de Enlaces Autónomos de Alta Definición (`Self-Contained Deep Links #data=...`)
+### RF-07: Composición de Envío Híbrido y Enlaces Autónomos de Alta Definición (`Self-Contained Deep Links #data=...`)
 
-La aplicación **debe** permitir adjuntar opcionalmente un enlace web estándar (`https://laralbir.github.io/img2asciiIM/#data=...`) que contiene la imagen fotográfica comprimida y codificada en Base64 URL-safe dentro del hash fragment de la URL, funcionando como puente híbrido entre el arte de texto instantáneo y la fotografía original:
+La aplicación **debe** permitir elegir de forma modular los componentes del mensaje a enviar mediante dos conmutadores independientes, adjuntando opcionalmente un enlace web estándar (`https://laralbir.github.io/img2asciiIM/#data=...`) que contiene la imagen fotográfica comprimida y codificada en Base64 URL-safe dentro del hash fragment de la URL, funcionando como puente híbrido entre el arte de texto instantáneo y la fotografía original:
 
-- **Criterio 07.1 — Compresión y Codificación Autónoma de Enlace en Cliente:**
+- **Criterio 07.1 — Conmutadores Modulares de Contenido y Salvaguarda de Mensaje No Vacío:**
   - **Given:** Una imagen cargada en la aplicación y el preset WhatsApp o Telegram activo.
-  - **When:** El usuario activa la opción «Adjuntar enlace de alta resolución».
-  - **Then:** El sistema comprime una versión miniatura optimizada de la imagen (JPEG/WebP compacto de ~4–10 KB), la codifica en Base64 URL-safe y genera la URL `https://laralbir.github.io/img2asciiIM/#data=<payload>`, asegurando que el mensaje total (arte de texto + salto + enlace) no supere el límite de caracteres de la plataforma (`65.536` en WhatsApp). En Instagram DM, la opción se deshabilita automáticamente dado su límite estricto de 1.000 caracteres.
+  - **When:** El usuario interactúa con los controles de composición de mensaje:
+    - `[x] Incluir arte de texto (ASCII / Braille)` (`includeTextArt`, por defecto `true`).
+    - `[x] Adjuntar enlace a foto HD (#data=...)` (`attachDeepLink`, por defecto `false`).
+  - **Then:** El sistema actualiza el estado de la UI y la vista previa del mensaje en tiempo real. Si el usuario intenta desmarcar ambas casillas simultáneamente, el sistema bloquea la desactivación de la última opción activa (o reactiva automáticamente la otra), garantizando la invariante de que el mensaje final nunca esté vacío ni carezca de contenido. En Instagram Direct, la opción de enlace HD se deshabilita automáticamente con indicación visual de no disponibilidad debido al límite estricto de 1.000 caracteres de dicha plataforma.
 
-- **Criterio 07.2 — Ingesta y Reconstrucción por Deep Link (`Intent.ACTION_VIEW`):**
-  - **Given:** Un usuario en un dispositivo con `img2asciiIM` instalada que pulsa un enlace `https://laralbir.github.io/img2asciiIM/#data=...` o `?data=...` recibido en un chat.
-  - **When:** Android resuelve el intent `VIEW` hacia `MainActivity`.
-  - **Then:** La aplicación extrae el payload de datos del intent URI, reconstruye los píxeles originales en memoria de forma 100% offline (sin petición de red) y carga la imagen en la vista previa a todo color y alta resolución.
+- **Criterio 07.2 — Asignación Íntegra de Presupuesto en Modo «Solo Enlace HD» (Máxima Nitidez Fotográfica):**
+  - **Given:** Una imagen cargada en la app, con `includeTextArt == false` y `attachDeepLink == true`.
+  - **When:** Se genera el mensaje para compartir o copiar.
+  - **Then:** Al omitirse completamente el bloque de arte ASCII/Braille, el sistema destina el **100 % del presupuesto de caracteres del canal IM** al payload fotográfico del enlace `#data=...`:
+    - En **WhatsApp** (presupuesto de `65.536` caracteres): La imagen se escala y comprime a **640–800 px de lado mayor con calidad JPEG 75**, produciendo un payload Base64 URL-safe de ~35–50 KB que cabe con holgura por debajo de los 65.536 caracteres.
+    - En **Telegram** (presupuesto de `4.096` caracteres): La imagen se escala a **200–240 px con calidad JPEG 50–60**, produciendo un payload Base64 URL-safe de ~2.800–3.800 caracteres que se mantiene estrictamente por debajo de los 4.096 caracteres para no partir el mensaje en dos burbujas.
+    - El mensaje final adopta un formato limpio sin caracteres dispersos:
+      ```text
+      📸 Ver foto en alta definición:
+      https://laralbir.github.io/img2asciiIM/#data=<payload>
+      ```
 
-- **Criterio 07.3 — Visor Web Estático de Respaldo (`docs/index.html`):**
-  - **Given:** Un destinatario que pulsa el enlace en un navegador web o en un dispositivo sin la app instalada.
-  - **When:** El navegador abre `https://laralbir.github.io/img2asciiIM/#data=...`.
-  - **Then:** La página estática HTML/JS (alojable en GitHub Pages sin servidor ni backend) lee `window.location.hash`, extrae el payload Base64 y dibuja la fotografía completa directamente en un `<canvas>` o `<img>` en el navegador.
+- **Criterio 07.3 — Modo Híbrido Dual (Arte de Texto + Enlace HD Compacto):**
+  - **Given:** Una imagen cargada en la app con `includeTextArt == true` y `attachDeepLink == true`.
+  - **When:** Se genera el mensaje para compartir o copiar.
+  - **Then:** El mensaje resultante concatena el arte de texto generado (respetando las columnas seleccionadas y el envoltorio Markdown de la plataforma) seguido de un doble salto de línea y el enlace de alta resolución:
+    ```text
+    <arte_ascii_o_braille>
+
+    🔗 Ver foto en alta definición:
+    https://laralbir.github.io/img2asciiIM/#data=<payload>
+    ```
+    En este modo dual, el codificador comprime la imagen a dimensiones miniatura compactas (**máximo 320 px, calidad 60**, payload ~4–10 KB) para asegurar que la suma de caracteres del arte y del enlace no exceda el límite máximo de la plataforma destino.
+
+- **Criterio 07.4 — Ingesta y Reconstrucción por Deep Link (`Intent.ACTION_VIEW`):**
+  - **Given:** Un usuario en un dispositivo Android con `img2asciiIM` instalada que pulsa un enlace `https://laralbir.github.io/img2asciiIM/#data=...` o `?data=...` recibido en cualquier chat o navegador.
+  - **When:** Android resuelve el intent `VIEW` hacia `MainActivity` (gracias a `<intent-filter android:autoVerify="true">` en `AndroidManifest.xml`).
+  - **Then:** La aplicación extrae el payload Base64 del hash/query del URI, decodifica los bytes JPEG mediante `DeepLinkImageCodec`, reconstruye los píxeles originales en memoria de forma 100% offline (sin realizar peticiones de red) y carga la fotografía en la vista previa identificada con el origen `ImageSourceOrigin.DEEP_LINK`. Si el payload es inválido o está truncado, emite un error tipado `ImageDecodeError.InvalidOrCorruptedImage` sin provocar excepciones no controladas.
+
+- **Criterio 07.5 — Visor Web Estático de Respaldo (`docs/index.html`):**
+  - **Given:** Un destinatario que pulsa el enlace en un navegador web de escritorio o móvil sin tener la app Android instalada.
+  - **When:** El navegador carga `https://laralbir.github.io/img2asciiIM/#data=...`.
+  - **Then:** La página web estática HTML5/Canvas servida por GitHub Pages sin servidor ni backend lee `window.location.hash`, extrae el payload Base64, dibuja la fotografía a todo color en un `<canvas>` o `<img>` interactivo en el cliente y ofrece un botón directo para descargar el APK de la aplicación si el usuario está en Android.
 
 ### RF-08: Publicación de Releases Firmadas en GitHub y Actualizaciones Automáticas In-App
 
-La aplicación **debe** contar con un sistema automatizado de integración y entrega continua (CI/CD) para publicar APKs firmadas con control de versiones semántico (`vX.Y.Z`) en GitHub Releases, así como un mecanismo nativo in-app para comprobar la existencia de nuevas versiones y guiar al usuario en su actualización sin depender de tiendas comerciales:
+La aplicación **debe** contar con un sistema automatizado de integración y entrega continua (CI/CD) para compilar y publicar APKs firmadas con control de versiones semántico (`vX.Y.Z`) en GitHub Releases, así como un mecanismo nativo in-app para comprobar la existencia de nuevas versiones y guiar al usuario en su actualización sin depender de tiendas comerciales privativas:
 
 - **Criterio 08.1 — Configuración Segura de Firma de Release en Gradle (`app/build.gradle.kts`):**
-  - **Given:** Un entorno de compilación de release (local o GitHub Actions runner).
+  - **Given:** Un entorno de compilación de release (local o runner de GitHub Actions).
   - **When:** Se ejecuta `./gradlew assembleRelease`.
-  - **Then:** Gradle carga las credenciales de firma desde variables de entorno (`KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD`, `KEYSTORE_PASSWORD`) o `keystore.properties` si existen. En ausencia de credenciales de producción (ej. desarrollo local), recurre limpiamente a la clave de depuración (`debug.keystore`) permitiendo generar APKs instalables sin romper el build.
+  - **Then:** Gradle lee las credenciales de firma desde variables de entorno seguras (`KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD`, `KEYSTORE_PASSWORD`) o `keystore.properties` si existen. En ausencia de credenciales de producción (ej. entorno de desarrollo local o bifurcaciones comunitarias), el script recurre de forma transparente a la clave de depuración (`debug.keystore`), permitiendo generar APKs instalables de release sin romper la compilación ni exigir secretos obligatorios.
 
 - **Criterio 08.2 — Pipeline CI/CD Automatizado en GitHub Actions (`.github/workflows/release.yml`):**
   - **Given:** Un push de etiqueta Git con formato de versión semántica `v*.*.*` (ej. `v1.0.0`).
   - **When:** El flujo de trabajo de GitHub Actions se ejecuta en `ubuntu-latest` con JDK 21.
-  - **Then:** Se ejecutan todos los tests unitarios (`./gradlew testDebugUnitTest`), se compila el APK firmado `app-release.apk`, se calcula su suma criptográfica SHA-256 (`sha256sum app-release.apk > app-release.apk.sha256`) y se publica automáticamente la Release en GitHub con el APK, el fichero de checksum y las notas de cambios generadas a partir de Conventional Commits.
+  - **Then:** Se ejecutan de manera obligatoria todos los tests unitarios y de integración JVM (`./gradlew testDebugUnitTest`), se compila el APK firmado `app-release.apk`, se calcula su suma criptográfica SHA-256 (`sha256sum img2asciiIM-vX.Y.Z.apk > img2asciiIM-vX.Y.Z.apk.sha256`) y se publica automáticamente la Release en GitHub con el archivo APK, el archivo de checksum y las notas de cambios generadas a partir de Conventional Commits.
 
 - **Criterio 08.3 — Comprobador In-App de Nuevas Versiones (`GitHubUpdateChecker`):**
   - **Given:** La app en ejecución y conectividad de red disponible.
-  - **When:** El usuario solicita comprobar actualizaciones (o la app realiza una comprobación opcional contra `https://api.github.com/repos/laralbir/img2asciiIM/releases/latest`).
-  - **Then:** La aplicación obtiene los metadatos JSON de la última release, extrae el tag (ej. `v1.1.0`), las notas de la versión y la URL directa del APK adjunto, y compara la versión contra `BuildConfig.VERSION_NAME` / `BuildConfig.VERSION_CODE`. Si existe una versión superior, expone el estado para notificar al usuario.
+  - **When:** El usuario pulsa la opción «Buscar actualizaciones» en la barra superior o en el menú de información (o la app realiza una comprobación opcional).
+  - **Then:** `GitHubUpdateChecker` consulta la API REST de GitHub Releases (`https://api.github.com/repos/laralbir/img2asciiIM/releases/latest`), parsea el JSON recibido extrayendo el tag (`tag_name`), las notas de versión (`body`), la URL HTML (`html_url`) y la URL directa de descarga del activo `.apk` (`browser_download_url`). Compara la versión remota contra `BuildConfig.VERSION_NAME` usando comparación semántica semver determinista (`isNewer(remote, local)`). Si la versión remota es mayor, emite `UpdateCheckResult.UpdateAvailable`; si es igual o menor, emite `UpdateCheckResult.UpToDate`.
 
 - **Criterio 08.4 — Descarga e Instalación Asistida del APK:**
-  - **Given:** Una nueva versión detectada por el comprobador.
-  - **When:** El usuario pulsa «Actualizar» o «Descargar APK».
-  - **Then:** La app facilita la descarga directa del APK de la release o abre el navegador en el asset oficial de GitHub Releases para instalar la actualización.
+  - **Given:** Una nueva versión detectada por el comprobador (`UpdateCheckResult.UpdateAvailable`).
+  - **When:** El usuario observa el diálogo informativo de nueva versión y pulsa «Descargar APK» o «Ver en GitHub».
+  - **Then:** La app abre el enlace directo de descarga del APK (`apkDownloadUrl`) o la página oficial de la release en el navegador mediante un `Intent(Intent.ACTION_VIEW)`, permitiendo al usuario descargar e instalar el paquete oficial verificado.
 
-- **Criterio 08.5 — Resiliencia Total Offline (Sin Fallos en Vuelo):**
-  - **Given:** El usuario en Modo Avión o conectado a una red sin salida a internet (Wi-Fi de solo mensajería).
-  - **When:** La app comprueba actualizaciones.
-  - **Then:** La comprobación detecta la ausencia de conectividad o fallo de red y finaliza de manera silenciosa o con un aviso discreto («Sin conexión para comprobar actualizaciones»), sin provocar bloqueos, excepciones no capturadas ni degradar el conversor de imágenes.
+- **Criterio 08.5 — Resiliencia Total Offline y Modo Avión (Cero Fallos en Vuelo):**
+  - **Given:** El usuario con el móvil en Modo Avión o conectado a una red sin salida a internet (Wi-Fi satelital de avión o portal cautivo bloqueado).
+  - **When:** Se ejecuta la comprobación de actualizaciones.
+  - **Then:** Las conexiones HTTP aplican un tiempo límite estricto de conexión y lectura (`connectTimeoutMs = 4000`, `readTimeoutMs = 4000`). Ante cualquier `IOException`, error de resolución DNS, código HTTP de error o timeout, el comprobador captura la situación limpiamente y devuelve `UpdateCheckResult.OfflineOrError("Sin conexión a internet o servicio no disponible")`, sin lanzar excepciones no controladas ni afectar al funcionamiento del conversor fotográfico.
 
 ---
 
@@ -334,11 +362,12 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 | :--- | :--- | :--- | :--- |
 | **RNF-01** | **Latencia de Conversión** | El pipeline completo en memoria (`PixelGrid` → cadena formateada) **debe** completarse en **`< 150 ms`** (objetivo P95 `< 80 ms`) en un dispositivo Android de gama media para anchos IM (`12–60` columnas), sin bloquear el hilo principal (`Main`). | Test cronometrado en JVM y test instrumentado en dispositivo |
 | **RNF-02** | **Presupuesto de Memoria (RAM)** | La decodificación de cualquier imagen —incluyendo fotografías de cámara de **48 MP–108 MP** o exportaciones pesadas— **debe** usar submuestreo previo (`inSampleSize` / `ImageDecoder.setTargetSize`) manteniendo el incremento máximo de heap **`< 20 MB`**. | Test con imagen sintética de alta resolución y medición de dimensiones decodificadas |
-| **RNF-03** | **Privacidad y Cero Red** | La aplicación **no declarará `android.permission.INTERNET`** ni permisos de lectura de almacenamiento en `AndroidManifest.xml`, garantizando por sistema operativo que ninguna imagen abandona jamás el dispositivo durante su procesado. | Test de auditoría del `AndroidManifest.xml` |
+| **RNF-03** | **Privacidad y Cero Exfiltración** | El 100 % del motor de conversión fotográfica y decodificación de deep links opera estrictamente en memoria local sin emitir tráfico de red. El permiso `android.permission.INTERNET` se utiliza exclusivamente para la comprobación manual/opcional de releases oficiales contra la API pública de GitHub (`api.github.com`), sin telemetría, analítica ni exfiltración de imágenes. | Test de auditoría del `AndroidManifest.xml` y trazabilidad de red |
 | **RNF-04** | **Operación 100% Offline** | El 100% de las funciones de conversión, previsualización, copiado y lanzamiento de `ACTION_SEND` **deben** funcionar con el dispositivo en Modo Avión o conectado a Wi-Fi de avión restringido. | Prueba E2E en dispositivo con conectividad deshabilitada |
 | **RNF-05** | **Accesibilidad (`a11y`)** | Todos los botones e iconos tendrán `contentDescription` descriptivos en español, tamaño táctil mínimo `48dp × 48dp`, y el contenedor de vista previa agrupará su semántica (`clearAndSetSemantics`) para anunciar un resumen legible en **TalkBack** en lugar de leer cientos de símbolos Braille o ASCII uno tras otro. | Compose Semantics UI Test |
 | **RNF-06** | **Velocidad de Suite TDD** | Todos los tests unitarios de `domain/` **deben** ejecutarse en JVM pura en **`< 100 ms`** en conjunto. | Ejecución `./gradlew testDebugUnitTest` |
 | **RNF-07** | **Respeto de Insets de Navegación (Edge-to-Edge Safe Area)** | La barra inferior de acciones (`Copiar` y `Enviar a...`) **debe** aplicar obligatoriamente `navigationBarsPadding()` para garantizar que la barra de navegación del sistema Android (tanto barra de 3 botones como barra gestual) jamás se superponga ni interfiera con los botones de acción interactivos, extendiendo a su vez el fondo del contenedor hasta el borde inferior de la pantalla. | Compose UI Test y verificación en hardware físico USB |
+| **RNF-08** | **Actualizaciones Seguras y Resiliencia de Red** | La comprobación de nuevas versiones en GitHub Releases debe aplicar un tiempo límite estricto `≤ 4.000 ms`, degradar de forma silenciosa e inocua en Modo Avión o redes cautivas sin lanzar excepciones no controladas, y verificar sumas criptográficas SHA-256 en las releases publicadas por CI/CD. | Test unitario con simulación de timeouts/red y workflow GitHub Actions |
 
 ---
 
@@ -353,6 +382,9 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 | **CB-05** | **Eliminación de espacios finales (*trailing spaces*) por clientes IM** | En modos `ASCII_CLASSIC` y `UNICODE_BLOCKS` sobre WhatsApp/Telegram el bloque ```` ``` ```` preserva el espaciado; además, las líneas derechas vacías pueden recortarse sin afectar la alineación izquierda, y en `BRAILLE_UNICODE` `U+2800` tiene categoría Unicode `So` (*Symbol, Other*), por lo que ningún `trim()` estándar lo elimina. | `domain/` |
 | **CB-06** | **Rotación de pantalla o cambio de tema del sistema Android durante la edición** | `ConverterViewModel` preserva el `PixelGrid` ya decodificado y todos los parámetros del usuario en su `StateFlow`, evitando re-decodificar la `Uri` o perder ajustes. | `ui/` |
 | **CB-07** | **Compatibilidad de `SplashScreen` y `<monochrome>` en versiones Android anteriores (API 26–32)** | `androidx.core:core-splashscreen` retroporta fondo e icono central en API 26–30 mientras `windowSplashScreenBrandingImage` se aísla limpiamente en `values-v31/themes.xml` (API 31+), y la etiqueta `<monochrome>` en `mipmap-anydpi-v26` es ignorada de forma segura por el sistema en API < 33 sin errores de recursos ni crashes. | `res/` + `ui/` |
+| **CB-08** | **Intento de desactivar simultáneamente arte de texto y enlace HD** | La interfaz y el ViewModel bloquean la desactivación de la última opción activa (o reactivan automáticamente la otra), garantizando la invariante de que el mensaje final nunca esté vacío ni carezca de contenido compartible. | `ui/` + `domain/` |
+| **CB-09** | **Deep Link entrante malformado, truncado o con payload Base64 corrupto** | `DeepLinkImageCodec.decodeFromDeepLink()` captura de forma segura `IllegalArgumentException` y fallos de decodificación de bitmap devolviendo `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`, notificando al usuario mediante snackbar sin crashear la aplicación. | `data/` + `ui/` |
+| **CB-10** | **Fallo de red, timeout o portal cautivo en comprobador in-app de GitHub Releases** | `GitHubUpdateChecker.check()` aplica timeouts de 4.000 ms y captura `IOException` y códigos HTTP anómalos devolviendo `UpdateCheckResult.OfflineOrError`, informando discretamente al usuario sin interrumpir la experiencia de conversión en vuelo. | `data/` + `ui/` |
 
 ---
 
@@ -368,12 +400,15 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 | `CA-04.1..04.3`, `RNF-05` | `ui` + `data` | Robolectric Compose UI (`Slice 6`) | `ConverterScreenTest`, `ImShareLauncherTest` |
 | `RNF-01`, `RNF-02`, `RNF-04`, `CA-05.2` | `e2e` | Instrumentado USB/Wi-Fi (`Slice 7`) | `EndToEndConversionAndroidTest` (incluyendo chequeo E2E de *cold start*) |
 | `CA-05.1`, `CA-05.2`, `CA-05.3`, `CB-07` | `res` + `ui` | Robolectric + Assets (`Slice 8`) | `BrandAssetsAndSplashTest` (`BrandAssetsAndSplashRobolectricTest` + chequeo de arranque) |
+| `CA-06.1`, `CA-06.2`, `RNF-07` | `ui` | Robolectric + USB (`Slice 9`) | `ConverterScreenRobolectricTest`, `BottomActionControlsTest` |
+| `CA-07.1..07.5`, `CB-08`, `CB-09` | `data` + `ui` | Unit JVM + Robolectric (`Slice 10`) | `DeepLinkImageCodecTest`, `ConverterViewModelTest`, `ConverterScreenRobolectricTest` |
+| `CA-08.1..08.5`, `RNF-08`, `CB-10` | `data` + `ci` | Unit JVM + CI/CD (`Slice 11`) | `GitHubUpdateCheckerTest`, `.github/workflows/release.yml` |
 
 ---
 
 ## 8. Decisiones de Diseño Validadas por el Usuario
 
-> **Estado de Decisiones:** Confirmadas por el usuario (`2026-11-06`), adoptando la **Opción A** en `DD-01`..`DD-05`.
+> **Estado de Decisiones:** Confirmadas por el usuario (`2026-11-06`), adoptando la **Opción A** en `DD-01`..`DD-07`.
 
 ### DD-01: Integración de Cámara en el MVP (`TakePicture` del Sistema vs. `CameraX` Integrado)
 - **Opción A (Recomendada para MVP):** Usar el contrato oficial `ActivityResultContracts.TakePicture()` junto con `FileProvider` en caché privada.
@@ -400,6 +435,16 @@ La aplicación **debe** contar con un sistema automatizado de integración y ent
 ### DD-05: Estilo Visual del Icono y Animación de Entrada en Splash Screen
 - **Opción A (Recomendada):** Icono vectorial minimalista oscuro (`#0D1117`, coherente con `docs/assets/banner.png`) con glifo luminoso esmeralda/cian combinando avión/imagen transformándose en matriz de puntos Braille/ASCII dentro de una burbuja IM, acompañado en la Splash Screen por una **animación vectorial sutil de aparición (`AnimatedVectorDrawable` `≤ 300 ms`)** que **jamás bloquea ni retrasa** la carga del contenido + `windowSplashScreenBrandingImage` monoespaciada en Android 12+.
 - **Opción B:** Mismo diseño de icono adaptativo/monocromo e imágenes de launch, pero con **Splash Screen 100% estática** (`VectorDrawable` fijo sin animación de entrada ni imagen inferior de *branding*).
+- **Estado:** `[x] Aprobada: Opción A`
+
+### DD-06: Conmutadores Modulares y Reasignación Íntegra de Presupuesto para Enlaces HD
+- **Opción A (Recomendada):** Permitir conmutar independientemente `[x] Incluir arte de texto (ASCII / Braille)` y `[x] Adjuntar enlace a foto HD (#data=...)`. Cuando se desactiva el arte de texto, el 100% del presupuesto de caracteres del canal IM (65.536 en WhatsApp, 4.096 en Telegram) se destina íntegramente al payload fotográfico del enlace, permitiendo resoluciones fotográficas sustancialmente mayores (640–800 px a calidad 75 en WhatsApp; 200–240 px en Telegram) y conservando un texto limpio (`📸 Ver foto en alta definición:\nhttps://laralbir.github.io/img2asciiIM/#data=...`). Se impone la salvaguarda de no permitir desmarcar ambas opciones a la vez.
+- **Opción B:** Forzar siempre la presencia del arte de texto o mantener una resolución fija pequeña (~320 px) para el enlace independientemente del texto.
+- **Estado:** `[x] Aprobada: Opción A`
+
+### DD-07: Distribución Autónoma de Releases Firmadas y Actualizaciones In-App
+- **Opción A (Recomendada):** Implementar pipeline automatizado en GitHub Actions (`.github/workflows/release.yml`) que ante tags Git `v*.*.*` compila con JDK 21, firma el APK oficial (con fallback transparente a `debug` en builds locales), genera sumas criptográficas SHA-256 y publica la GitHub Release oficial. Dotar a la aplicación de un comprobador in-app (`GitHubUpdateChecker`) contra la API pública de GitHub con comparación semver determinista y resiliencia offline total ante fallos de red en vuelo.
+- **Opción B:** Depender exclusivamente de descargas manuales desde la interfaz web de GitHub sin comprobador integrado en la aplicación ni cálculo de checksums en el workflow.
 - **Estado:** `[x] Aprobada: Opción A`
 
 ---
