@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Permite que los tests instrumentados (Compose UI Tests por USB / Wi-Fi)
+      despierten la pantalla y rendericen sobre el bloqueo en dispositivos físicos
+      en reposo (mWakefulness=Dozing), afectando exclusivamente a builds debug.
+    -->
+    <application>
+        <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+    </application>
+
+</manifest>

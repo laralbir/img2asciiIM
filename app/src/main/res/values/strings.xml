@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">img2asciiIM</string>
+    <string name="main_offline_badge">[ 100% OFFLINE · MODO AVIÓN ]</string>
+    <string name="main_offline_subtitle">Preparación local sin conexión para mensajería instantánea a bordo.</string>
+    <string name="main_workspace_title">Entorno SDD + TDD listo</string>
+    <string name="main_workspace_description">Base arquitectónica limpia preparada para especificar, probar e implementar funcionalidades paso a paso.</string>
+    <string name="main_targets_heading">Canales de mensajería previstos</string>
+    <string name="main_loading_description">Cargando estado inicial</string>
+    <string name="main_error_message">Error al cargar el estado: %1$s</string>
+</resources>
