@@ -64,8 +64,10 @@ make wifi-pair       # Android 11+: Vinculación por código de 6 dígitos con a
 make wifi-from-usb   # Puente clásico: pasa un móvil conectado por USB a Wi-Fi (puerto 5555)
 
 # --- DESPLIEGUE Y LOGS EN VIVO ---
-make deploy          # Compila e instala con Delta Install sobre USB o Wi-Fi y abre la app
-make logs            # Logcat en color filtrado automáticamente por el PID de img2asciiIM
+make deploy-usb      # Instala y abre directamente en el móvil por USB (ej. Pixel 10 Pro XL)
+make deploy-wifi     # Instala y abre directamente en el móvil por Wi-Fi
+make deploy SERIAL=pixel10  # También acepta filtro por nombre de modelo o serial exacto
+make logs-usb        # Logcat en color filtrado por el PID de img2asciiIM en el móvil USB
 make test-device     # Ejecuta tests instrumentados (androidTest) en el móvil USB/Wi-Fi
 ```
 

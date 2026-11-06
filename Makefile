@@ -12,7 +12,7 @@ PORT      ?=
 ADDR      ?=
 CODE      ?=
 
-.PHONY: help test test-device build doctor status usb wifi-qr wifi-pair wifi-from-usb disconnect deploy logs emu-start emu-stop
+.PHONY: help test test-device test-usb test-wifi build doctor status usb wifi-qr wifi-pair wifi-from-usb disconnect deploy deploy-usb deploy-wifi logs logs-usb logs-wifi emu-start emu-stop
 
 help:
 	@printf "\n\033[1;36m━━━ Comandos de Desarrollo y Depuración — img2asciiIM ━━━\033[0m\n\n"
@@ -28,8 +28,12 @@ help:
 	@printf "  \033[0;32mmake wifi-from-usb\033[0m   Puente clásico USB → Wi-Fi TCP/IP (puerto 5555) y soltar cable\n"
 	@printf "  \033[0;32mmake disconnect\033[0m      Desconecta sesiones ADB activas por Wi-Fi\n\n"
 	@printf "\033[1mDespliegue, Logs y Emulador:\033[0m\n"
-	@printf "  \033[0;32mmake deploy\033[0m          Compila, instala y abre la app en el dispositivo activo [SERIAL=...]\n"
+	@printf "  \033[0;32mmake deploy\033[0m          Compila, instala y abre la app [SERIAL=serial|pixel10|--usb|--wifi]\n"
+	@printf "  \033[0;32mmake deploy-usb\033[0m      Compila, instala y abre la app directamente en el móvil por USB\n"
+	@printf "  \033[0;32mmake deploy-wifi\033[0m     Compila, instala y abre la app directamente en el móvil por Wi-Fi\n"
 	@printf "  \033[0;32mmake logs\033[0m            Muestra logcat en vivo filtrado por PID de la app [SERIAL=...]\n"
+	@printf "  \033[0;32mmake logs-usb\033[0m        Muestra logcat en vivo del móvil conectado por USB\n"
+	@printf "  \033[0;32mmake logs-wifi\033[0m       Muestra logcat en vivo del móvil conectado por Wi-Fi\n"
 	@printf "  \033[0;32mmake emu-start\033[0m       Arranca el emulador Android ($(AVD))\n"
 	@printf "  \033[0;32mmake emu-stop\033[0m        Detiene el emulador Android ($(AVD))\n\n"
 	@printf "\033[2mGuía detallada paso a paso: docs/DEBUGGING.md\033[0m\n\n"
@@ -39,6 +43,12 @@ test:
 
 test-device:
 	./gradlew connectedDebugAndroidTest
+
+test-usb:
+	ANDROID_SERIAL="$$($(ADB_DEBUG) serial --usb)" ./gradlew connectedDebugAndroidTest
+
+test-wifi:
+	ANDROID_SERIAL="$$($(ADB_DEBUG) serial --wifi)" ./gradlew connectedDebugAndroidTest
 
 build:
 	./gradlew assembleDebug
@@ -67,8 +77,20 @@ disconnect:
 deploy:
 	$(ADB_DEBUG) deploy $(SERIAL)
 
+deploy-usb:
+	$(ADB_DEBUG) deploy --usb
+
+deploy-wifi:
+	$(ADB_DEBUG) deploy --wifi
+
 logs:
 	$(ADB_DEBUG) logs $(SERIAL)
+
+logs-usb:
+	$(ADB_DEBUG) logs --usb
+
+logs-wifi:
+	$(ADB_DEBUG) logs --wifi
 
 emu-start:
 	android emulator start $(AVD)

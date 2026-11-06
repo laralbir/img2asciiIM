@@ -122,7 +122,7 @@ classify_serial() {
 get_device_prop() {
   local serial="$1"
   local prop="$2"
-  adb -s "$serial" shell getprop "$prop" 2>/dev/null | tr -d '\r' | head -n 1 || true
+  adb -s "$serial" shell -n getprop "$prop" 2>/dev/null | tr -d '\r' | head -n 1 || true
 }
 
 print_device_card() {
@@ -257,24 +257,9 @@ auto_connect_after_pair() {
 }
 
 # Selección inteligente de dispositivo objetivo para deploy / logs
+# Acepta: --usb | --wifi | --emulator | <serial exacto> | <subcadena del modelo, ej. "pixel 10" o "pixel10">
 select_target_device() {
   local requested="${1:-${ANDROID_SERIAL:-}}"
-
-  if [[ -n "$requested" ]]; then
-    local st
-    st="$(adb devices | awk -v s="$requested" 'NR>1 && $1==s {print $2}' | head -n 1 || true)"
-    if [[ "$st" == "device" ]]; then
-      printf "%s" "$requested"
-      return 0
-    elif [[ "$st" == "unauthorized" || "$st" == "offline" ]]; then
-      print_rsa_instructions "$requested ($st)" >&2
-      return 1
-    else
-      err "El dispositivo '${requested}' no aparece conectado en 'adb devices'."
-      err "Ejecuta './scripts/adb-debug.sh doctor' para ver los dispositivos disponibles."
-      return 1
-    fi
-  fi
 
   local online_lines=()
   local bad_list=()
@@ -290,6 +275,62 @@ select_target_device() {
       bad_list+=("${serial}(${state})")
     fi
   done < <(adb devices)
+
+  if [[ -n "$requested" ]]; then
+    case "$requested" in
+      --usb|usb)
+        local s
+        for s in "${online_lines[@]+"${online_lines[@]}"}"; do
+          [[ "$(classify_serial "$s")" == "usb" ]] && { printf "%s" "$s"; return 0; }
+        done
+        err "No hay ningún dispositivo Android conectado y autorizado por cable USB ahora mismo."
+        [[ ${#bad_list[@]} -gt 0 ]] && print_rsa_instructions "${bad_list[*]}" >&2
+        return 1
+        ;;
+      --wifi|wifi)
+        local s
+        for s in "${online_lines[@]+"${online_lines[@]}"}"; do
+          [[ "$(classify_serial "$s")" == "wifi" ]] && { printf "%s" "$s"; return 0; }
+        done
+        err "No hay ningún dispositivo Android conectado por Wi-Fi ahora mismo."
+        return 1
+        ;;
+      --emulator|emulator)
+        local s
+        for s in "${online_lines[@]+"${online_lines[@]}"}"; do
+          [[ "$(classify_serial "$s")" == "emulator" ]] && { printf "%s" "$s"; return 0; }
+        done
+        err "No hay ningún emulador Android en ejecución ahora mismo."
+        return 1
+        ;;
+    esac
+
+    local st
+    st="$(adb devices | awk -v s="$requested" 'NR>1 && $1==s {print $2}' | head -n 1 || true)"
+    if [[ "$st" == "device" ]]; then
+      printf "%s" "$requested"
+      return 0
+    elif [[ "$st" == "unauthorized" || "$st" == "offline" ]]; then
+      print_rsa_instructions "$requested ($st)" >&2
+      return 1
+    fi
+
+    # Búsqueda flexible por nombre de modelo (ej. "pixel 10", "pixel10", "pixel_10")
+    local norm_req norm_model s model
+    norm_req="$(printf "%s" "$requested" | tr '[:upper:]' '[:lower:]' | tr -d ' _-')"
+    for s in "${online_lines[@]+"${online_lines[@]}"}"; do
+      model="$(get_device_prop "$s" ro.product.model)"
+      norm_model="$(printf "%s" "$model" | tr '[:upper:]' '[:lower:]' | tr -d ' _-')"
+      if [[ -n "$norm_req" && "$norm_model" == *"$norm_req"* ]]; then
+        printf "%s" "$s"
+        return 0
+      fi
+    done
+
+    err "El dispositivo '${requested}' no coincide con ningún serial ni modelo conectado."
+    err "Ejecuta './scripts/adb-debug.sh doctor' para ver los dispositivos disponibles."
+    return 1
+  fi
 
   if [[ ${#online_lines[@]} -eq 0 ]]; then
     err "No hay ningún dispositivo Android activo y autorizado en este momento."
@@ -1213,6 +1254,11 @@ case "$SUBCOMMAND" in
     ;;
   logs)
     cmd_logs "$@"
+    ;;
+  serial)
+    require_adb
+    select_target_device "${1:---usb}"
+    printf "\n"
     ;;
   -h|--help|help)
     cmd_help
