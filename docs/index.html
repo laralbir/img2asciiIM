@@ -305,9 +305,13 @@
       const btnSave = document.getElementById('btn-save');
 
       if (payload) {
-        const appUri = `img2asciiim://view?d=${encodeURIComponent(payload)}`;
-        if (btnOpenAppBanner) btnOpenAppBanner.href = appUri;
-        if (btnOpenAppAction) btnOpenAppAction.href = appUri;
+        const isAndroid = /android/i.test(navigator.userAgent);
+        const intentUri = `intent://view?d=${encodeURIComponent(payload)}#Intent;scheme=img2asciiim;package=com.laralbir.img2asciiim;S.browser_fallback_url=${encodeURIComponent('https://github.com/laralbir/img2asciiIM/releases/latest')};end`;
+        const customSchemeUri = `img2asciiim://view?d=${encodeURIComponent(payload)}`;
+        const targetUri = isAndroid ? intentUri : customSchemeUri;
+
+        if (btnOpenAppBanner) btnOpenAppBanner.href = targetUri;
+        if (btnOpenAppAction) btnOpenAppAction.href = targetUri;
 
         try {
           const blob = urlSafeBase64ToBlob(payload);
