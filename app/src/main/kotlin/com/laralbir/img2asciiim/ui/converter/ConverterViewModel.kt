@@ -157,7 +157,7 @@ class ConverterViewModel(
           )
         }
         is DomainResult.Failure -> {
-          val errorMessage = "El enlace del portapapeles no contiene una imagen válida o está dañado."
+          val errorMessage = "El enlace de la imagen está incompleto o dañado (WhatsApp recorta enlaces que superan 4096 caracteres)."
           _uiState.update { state ->
             state.copy(
               isLoadingImage = false,
@@ -337,25 +337,29 @@ class ConverterViewModel(
     val decoded = currentDecodedImage ?: return result.formattedMessage
 
     return if (!state.includeAsciiArt) {
-      // EXPANDED_HD mode: ASCII preview omitted, dedicating all bytes to the photo!
-      val maxAllowedTotal = preset.maxCharacters
+      // EXPANDED_HD mode: ASCII preview omitted, dedicating all safe bytes to the photo!
       val deepLinkUrl = deepLinkCodec.encodeToDeepLink(
         pixelGrid = decoded.pixelGrid,
         mode = DeepLinkMode.EXPANDED_HD,
         preset = preset,
-        maxCharacterBudget = maxAllowedTotal,
+        maxCharacterBudget = DeepLinkImageCodec.MAX_SAFE_URL_LENGTH,
       )
       deepLinkUrl
     } else {
       // STANDARD mode: Both ASCII art and deep link thumbnail
       val art = result.formattedMessage
-      val maxAllowedTotal = preset.maxCharacters
-      val remainingBudget = (maxAllowedTotal - art.length - 1).coerceAtLeast(200)
+      val maxUrlBudget = when (preset) {
+        ImPlatformPreset.TELEGRAM -> (preset.maxCharacters - art.length - 1)
+          .coerceIn(200, DeepLinkImageCodec.MAX_SAFE_URL_LENGTH)
+        ImPlatformPreset.WHATSAPP -> DeepLinkImageCodec.MAX_SAFE_URL_LENGTH
+        ImPlatformPreset.INSTAGRAM_DIRECT -> (preset.maxCharacters - art.length - 1)
+          .coerceIn(200, DeepLinkImageCodec.MAX_SAFE_URL_LENGTH)
+      }
       val deepLinkUrl = deepLinkCodec.encodeToDeepLink(
         pixelGrid = decoded.pixelGrid,
         mode = DeepLinkMode.STANDARD,
         preset = preset,
-        maxCharacterBudget = remainingBudget,
+        maxCharacterBudget = maxUrlBudget,
       )
       "$art\n$deepLinkUrl"
     }

@@ -3,10 +3,10 @@
 | Campo | Valor |
 | :--- | :--- |
 | **ID de Especificación** | `001-core-img2ascii-im` |
-| **Estado** | `IMPLEMENTADO — Actualizado con WebP Lossy, Adaptive Resizing #d=, App Links, Empty State, Importación desde Portapapeles (Offline Fallback) y Configuración de Enlaces Nativos (2026-11-06)` |
+| **Estado** | `IMPLEMENTADO — Actualizado con Cota Máxima de Enlace Seguro MAX_SAFE_URL_LENGTH = 3.800 Chars, Límite Duro de WhatsApp (4.096 Chars) y Guardia de Integridad RIFF WebP (2026-11-07)` |
 | **Autor(es)** | `sdd-architect` |
 | **Fecha de Creación** | `2026-11-06` |
-| **Última Actualización** | `2026-11-06` |
+| **Última Actualización** | `2026-11-07` |
 | **Paquete Raíz** | `com.laralbir.img2asciiim` |
 | **Repositorio** | `https://github.com/laralbir/img2asciiIM` |
 | **Dependencias Previas** | Ninguna (Especificación fundacional del MVP) |
@@ -59,7 +59,7 @@ Para ofrecer una experiencia 100 % fiable en cualquier circunstancia, `img2ascii
 | **HU-04** | `P0` | **Como** usuario de WhatsApp, Telegram o Instagram Direct, **quiero** elegir el perfil de mi app de destino, **para** que el formato tipográfico y la longitud del mensaje respeten automáticamente sus reglas (`65.536`, `4.096` o `1.000` caracteres, con o sin ```` ``` ````). | Cero mensajes truncados o deformados |
 | **HU-05** | `P0` | **Como** pasajero conectado solo al plan de mensajería del avión, **quiero** enviar el texto directamente a la app elegida o copiarlo en 1 toque sin requerir internet para la conversión, **para** transmitir información visual cuando el envío de fotos está bloqueado. | Comunicación visual sobre canal de solo texto |
 | **HU-06** | `P0` | **Como** usuario de Android moderno (incluyendo Pixel Launcher con iconos temáticos y tema claro/oscuro), **quiero** que `img2asciiIM` cuente con un icono adaptativo y monocromo propio, imágenes de lanzamiento (*launch/branding*) y una *Splash Screen* nativa instantánea sin pantallas en blanco ni demoras artificiales, **para** percibir una experiencia pulida desde el primer fotograma. | Identidad visual nativa y arranque instantáneo |
-| **HU-07** | `P0` | **Como** usuario que desea compartir fotografías de alta nitidez sobre canales de mensajería, **quiero** conmutar modularmente entre arte de texto y un enlace autónomo HD con códec WebP Lossy (`#d=...`), con redimensionamiento adaptativo anti-división (máx `3.900` caracteres en Telegram o `3.900 - art.length - 1` en modo híbrido, y hasta `65.536` chars en WhatsApp mediante Clipboard-First) y apertura directa nativa (`img2asciiim://view?d=...`), **para** maximizar la resolución y asegurar que el mensaje nunca se divida ni se recorte en el chat. | Envío híbrido WebP, anti-división y App Links |
+| **HU-07** | `P0` | **Como** usuario que desea compartir fotografías de alta nitidez sobre canales de mensajería, **quiero** conmutar modularmente entre arte de texto y un enlace autónomo HD con códec WebP Lossy (`#d=...`), con redimensionamiento adaptativo estricto bajo la cota universal segura `MAX_SAFE_URL_LENGTH = 3.800` caracteres (evitando el truncamiento destructivo a 4.096 caracteres de WhatsApp y la división de burbujas en Telegram, y en modo híbrido reservando `3.800 - art.length - 1` caracteres) y apertura directa nativa (`img2asciiim://view?d=...`), **para** maximizar la resolución y asegurar que el mensaje nunca se divida, se recorte ni muestre una imagen en negro en el chat. | Envío híbrido WebP, cota segura 3.800 y App Links |
 | **HU-08** | `P0` | **Como** usuario fuera de tiendas comerciales, **quiero** comprobar in-app la disponibilidad de nuevas versiones oficiales desde GitHub Releases y actualizar mi APK firmado de forma asistida y segura, **para** mantenerme actualizado con total resiliencia sin fallos en vuelo. | Actualizaciones in-app y CI/CD firmado |
 | **HU-09** | `P0` | **Como** receptor de un mensaje sin conexión a internet (en pleno vuelo o en Modo Avión), **quiero** copiar el mensaje o enlace recibido en WhatsApp o Telegram y abrir `img2asciiIM` para que detecte automáticamente la imagen desde el portapapeles (o pulsar el chip «Portapapeles»), **para** ver la fotografía de forma inmediata y 100 % offline sin necesidad de navegador web. | Importación instantánea offline desde portapapeles |
 | **HU-10** | `P1` | **Como** usuario de Android, **quiero** acceder directamente desde la aplicación a los Ajustes de «Abrir de forma predeterminada» de Android, **para** configurar que los enlaces compatibles se abran siempre en `img2asciiIM` de manera nativa sin pasar por Google Chrome. | Enlace directo a configuración de App Links nativos |
@@ -170,7 +170,7 @@ El sistema **debe** proporcionar tres perfiles preconfigurados que aplican las r
 
 | Perfil (`ImPlatformPreset`) | Paquete Canónico Android | Envoltorio Monoespaciado | Modo Recomendado Inicial | Ancho Inicial (Rango Recomendado) | Límite Estricto |
 | :--- | :--- | :---: | :--- | :---: | :---: |
-| **WhatsApp** | `com.whatsapp` | Sí: ```` ```<arte>``` ```` *(sin `U+0020` inicial)* | `ASCII_CLASSIC` *(admite todos)* | `32` cols (`28–36` cols) | **`65.536`** chars *(práctico `≤ 4.000`)* |
+| **WhatsApp** | `com.whatsapp` | Sí: ```` ```<arte>``` ```` *(sin `U+0020` inicial)* | `ASCII_CLASSIC` *(admite todos)* | `32` cols (`28–36` cols) | **`65.536`** chars multilínea *(URLs continuas `≤ 3.800` por corte a 4.096 chars)* |
 | **Telegram** | `org.telegram.messenger` | Sin ```` ``` ```` en Braille / ```` ```\n<arte>\n``` ```` en ASCII | **`BRAILLE_UNICODE`** *(o `ASCII_CLASSIC`)* | `30` cols (`28–38` cols) | **`4.096`** chars UTF-16 |
 | **Instagram Direct** | `com.instagram.android` | **No** *(texto plano directo)* | **`BRAILLE_UNICODE`** *(o `UNICODE_BLOCKS`)* | `22` cols (`16–24` cols) | **`1.000`** chars *(y cota `≤ 1.000` bytes UTF-8)* |
 
@@ -226,8 +226,8 @@ La pantalla principal **debe** mostrar una vista previa fiel del mensaje e integ
   - **When:** El usuario pulsa **"Enviar a Instagram"**.
   - **Then:** La aplicación no lanza `ActivityNotFoundException`; en su lugar abre el Share Sheet nativo de Android (`Intent.createChooser`) con el texto generado e informa discretamente al usuario.
 
-- **CA-04.4 — Entrega Clipboard-First en WhatsApp para Cargas Extensas (hasta 65.536 chars):**
-  - **Given:** Un mensaje generado bajo el perfil WhatsApp con enlace HD activo (`attachDeepLink == true`), el cual puede alcanzar hasta `65.536` caracteres aprovechando el presupuesto amplio de la plataforma.
+- **CA-04.4 — Entrega Clipboard-First en WhatsApp para Cargas Extensas (hasta 65.536 chars de texto):**
+  - **Given:** Un mensaje generado bajo el perfil WhatsApp con arte de texto extenso (hasta `65.536` caracteres) y/o enlace HD activo (`attachDeepLink == true`, donde la URL generada nunca excede `MAX_SAFE_URL_LENGTH = 3.800` caracteres).
   - **When:** El usuario pulsa **"Enviar a WhatsApp"**.
   - **Then:** El sistema aplica el patrón *Clipboard-First*: (1) copia preventivamente la totalidad del mensaje formateado en `ClipboardManager` mediante `ClipData.newPlainText`; (2) lanza el `Intent.ACTION_SEND` hacia `com.whatsapp`; (3) muestra un aviso en pantalla (Snackbar persistente o Toast amigable) informando: *"Mensaje copiado al portapapeles. Si WhatsApp recorta el contenido, mantén presionado el campo de chat y selecciona Pegar"*, salvaguardando la integridad del mensaje ante las cotas de IPC/Binder de Android o posibles recortes en `EXTRA_TEXT` del cliente destino.
 
@@ -324,30 +324,47 @@ La aplicación **debe** permitir elegir de forma modular los componentes del men
        - `?d=<payload>` (parámetro query alternativo)
        - `?data=<payload>` (parámetro query previo)
 
-- **Criterio 07.3 — Redimensionamiento Adaptativo Estricto al Límite del Mensaje (Garantía Anti-División):**
-  - **Given:** Una imagen fotográfica cargada y la generación de mensaje en curso.
+- **Criterio 07.3 — Redimensionamiento Adaptativo Estricto, Cota Universal Segura (`MAX_SAFE_URL_LENGTH = 3.800`) y Límite Duro de WhatsApp / Telegram:**
+  - **Given:** Una imagen fotográfica cargada y la generación de mensaje en curso para cualquier preset soportado (WhatsApp o Telegram).
   - **When:** Se calcula el enlace HD según la plataforma y la combinación de conmutadores activa.
   - **Then:**
-    1. **Telegram — Presupuesto Máximo de 3.900 caracteres (Garantía Anti-División):**
-       - Se establece un límite máximo estricto de **`3.900` caracteres** (frente al límite del protocolo de Telegram de 4.096 chars), reservando un margen de seguridad de más de 190 caracteres para saltos de línea, metadatos y variaciones del cliente, garantizando que el mensaje **jamás sea dividido en dos burbujas de chat**.
-       - **Modo Solo Enlace HD (`includeTextArt == false`):** La imagen se escala inicialmente a `200–280 px` con calidad WebP `45–65`, garantizando que la URL completa no supere los `3.900` caracteres.
-       - **Modo Híbrido Dual (`includeTextArt == true`):** El presupuesto del enlace se calcula dinámicamente como:
-         $$\text{budget}_{\text{deeplink}} = 3.900 - \text{art.length} - 1$$
-         Si la URL inicial excede este presupuesto, `DeepLinkImageCodec` ejecuta un bucle adaptativo decreciendo la calidad WebP en pasos de 5 unidades ($Q_{n+1} = Q_n - 5$, hasta `20`) y reduciendo progresivamente la dimensión mayor en pasos del 15% ($D_{n+1} = \lfloor 0.85 \times D_n \rfloor$, hasta un mínimo seguro de `80 px`) hasta que la suma total `art.length + 1 + url.length <= 3.900`.
-    2. **WhatsApp — Máxima Resolución y Entrega Clipboard-First:**
-       - **Modo Solo Enlace HD (`includeTextArt == false`):** Aprovecha el presupuesto de hasta `65.536` caracteres de WhatsApp, escalando la imagen a **`720–800 px` con calidad WebP 75–80**, produciendo un payload nítido de ~20–35 KB.
-       - **Modo Híbrido Dual (`includeTextArt == true`):** Escala a miniatura de **`320 px` a calidad WebP 60** (payload ~4–8 KB).
-       - En envíos extensos que puedan verse comprometidos por limitaciones de IPC/Binder de Android en `EXTRA_TEXT`, se aplica la entrega Clipboard-First (`CA-04.4`), garantizando que el usuario disponga siempre de la totalidad del mensaje en su portapapeles.
+    1. **Límite Duro de WhatsApp en Cadenas Continuas (`4.096` caracteres):**
+       - Aunque WhatsApp admite hasta `65.536` caracteres en mensajes con texto multilínea ordinario, la aplicación WhatsApp y la pila IPC/componentes de renderizado de texto de Android aplican un truncamiento destructivo forzado en tokens y URLs continuas (cadenas sin espacios en blanco) a los `4.096` caracteres exactos. Cualquier enlace continuo que sobrepase los 4.096 caracteres es cortado de manera irreversible al enviarse o pegarse en el chat, destruyendo el final del payload Base64 y provocando fallos de decodificación o imágenes en negro en los receptores.
+    2. **Restricción Universal de Enlace Seguro (`MAX_SAFE_URL_LENGTH = 3.800` caracteres):**
+       - Ningún enlace Deep Link generado por `DeepLinkImageCodec` podrá superar bajo ninguna circunstancia los **`3.800` caracteres** de longitud total (`url.length <= MAX_SAFE_URL_LENGTH`), con independencia de la plataforma seleccionada (WhatsApp, Telegram) o del modo activo (Estándar o Expandido HD).
+       - Este margen de seguridad de $4.096 - 3.800 = 296$ caracteres salvaguarda contra truncados destructivos por WhatsApp, partición en múltiples burbujas en Telegram (cuyo límite de mensaje es `4.096`) y variaciones de serialización o encoding en capas OEM de Android.
+    3. **Reglas de Presupuesto Adaptativo por Plataforma y Modo:**
+       - **Telegram:**
+         - **Modo Solo Enlace HD (`includeTextArt == false`):** Se aplica un presupuesto máximo de **`3.800` caracteres** (`MAX_SAFE_URL_LENGTH`), garantizando que la URL completa no supere dicha cota.
+         - **Modo Híbrido Dual (`includeTextArt == true`):** El presupuesto del enlace se calcula dinámicamente como:
+           $$\text{budget}_{\text{deeplink}} = \min(3.800, 3.900 - \text{art.length} - 1)$$
+           garantizando simultáneamente que el mensaje total no supere `3.900` caracteres (inmunidad anti-división en Telegram) y que la URL individual no supere `3.800` caracteres.
+       - **WhatsApp:**
+         - **Modo Solo Enlace HD (`includeTextArt == false`):** A pesar de que los mensajes multilínea de WhatsApp toleran hasta `65.536` caracteres, el enlace continuo está sujeto al límite duro de `4.096` caracteres. Por ello, el generador establece un presupuesto estricto de **`3.800` caracteres** (`MAX_SAFE_URL_LENGTH`), escalando la imagen en WebP Lossy para maximizar la nitidez sin riesgo de truncamiento.
+         - **Modo Híbrido Dual (`includeTextArt == true`):** El enlace HD se mantiene acotado estrictamente a $\le 3.800$ caracteres (`MAX_SAFE_URL_LENGTH`), permitiendo que el arte de texto acompañe al enlace de forma armónica.
+       - En envíos extensos de texto en WhatsApp que puedan verse afectados por limitaciones de IPC/Binder de Android en `EXTRA_TEXT`, se preserva complementariamente la entrega Clipboard-First (`CA-04.4`).
+    4. **Algoritmo de Reducción Adaptativa Estricto (Convergencia Determinista):**
+       Si la URL inicial excede el presupuesto asignado ($\text{url.length} > \text{budget}$), `DeepLinkImageCodec` ejecuta un algoritmo adaptativo de 4 fases que converge de manera determinista:
+       - **Fase 1 (Reducción de Calidad WebP):** Decrece progresivamente la calidad WebP en pasos de 5 unidades ($Q_{n+1} = Q_n - 5$) mientras $\text{url.length} > \text{budget}$ y $Q > 20$.
+       - **Fase 2 (Reducción Dimensional Progresiva):** Si aún sobrepasa el presupuesto, reduce la dimensión mayor un 15% en cada iteración ($D_{n+1} = \lfloor 0.85 \times D_n \rfloor$, forzando decremento de al menos 1 píxel si el redondeo estanca) mientras $\text{url.length} > \text{budget}$ y $D > 48\text{ px}$.
+       - **Fase 3 (Afinado de Calidad Mínima):** Si persiste el exceso, reduce la calidad en decrementos unitarios ($Q_{n+1} = Q_n - 1$) mientras $\text{url.length} > \text{budget}$ y $Q > 15$.
+       - **Fase 4 (Garantía Estricta Residual):** Si excepcionalmente se requiere mayor reducción (ej. presupuestos híbridos muy estrechos), reduce dimensiones al 80% ($D_{n+1} = \lfloor 0.80 \times D_n \rfloor$) hasta 16 px, calidad hasta 5 ($Q_{n+1} = Q_n - 2$), y dimensión píxel a píxel hasta 1 px si fuera necesario, garantizando matemáticamente $\text{url.length} \le \text{budget}$.
 
-- **Criterio 07.4 — Esquema de App Nativa (`img2asciiim://view?d=...`) e Ingesta:**
+- **Criterio 07.4 — Esquema de App Nativa (`img2asciiim://view?d=...`), Ingesta y Guardia de Integridad RIFF WebP:**
   - **Given:** Un enlace en formato universal `https://laralbir.github.io/img2asciiIM/#d=...` o mediante el esquema personalizado `img2asciiim://view?d=...`.
-  - **When:** El usuario pulsa el enlace en cualquier aplicación externa o navegador web en Android.
+  - **When:** El usuario pulsa el enlace en cualquier aplicación externa o navegador web en Android, o la app lo recibe vía Intent o Clipboard.
   - **Then:**
     1. `AndroidManifest.xml` resuelve el intent `VIEW` hacia `MainActivity` a través de los dos filtros declarados:
        - Filtro App Links HTTPS con `android:autoVerify="true"` para `host="laralbir.github.io"` y `pathPrefix="/img2asciiIM"`.
        - Filtro de esquema personalizado con `android:scheme="img2asciiim"`, `android:host="view"`.
     2. `MainActivity.kt` intercepta `Intent.ACTION_VIEW`, extrae el payload Base64 sin importar si proviene de `#d=`, `#data=`, `?d=` o `?data=`, y delega en `DeepLinkImageCodec.decodeFromDeepLink()`.
-    3. El decodificador detecta polimórficamente si los bytes corresponden a WebP (`RIFF...WEBP`) o JPEG (`0xFF 0xD8`), reconstruye el `PixelGrid` original a color en memoria **100 % offline (cero peticiones de red)** y actualiza la vista con `ImageSourceOrigin.DEEP_LINK`. Si el payload está dañado o truncado, emite `ImageDecodeError.InvalidOrCorruptedImage` sin provocar excepciones no controladas.
+    3. **Guardia de Integridad de Cabecera RIFF WebP en Recepción (`CB-15`, `CB-17`):**
+       Antes de delegar en `BitmapFactory.decodeByteArray`, el decodificador inspecciona los bytes mágicos iniciales del flujo decodificado:
+       - Si los primeros 4 bytes corresponden a `"RIFF"` (`0x52, 0x49, 0x46, 0x46`) y los bytes 8..11 a `"WEBP"` (`0x57, 0x45, 0x42, 0x50`), extrae el tamaño esperado del payload declarado en la cabecera RIFF (bytes 4..7 en formato little-endian de 32 bits, sumando 8 bytes de cabecera: $\text{expectedSize} = \text{readLittleEndian32}(\text{bytes}[4..7]) + 8$).
+       - Comprueba la condición de integridad: $\text{bytes.size} \ge \text{expectedSize}$.
+       - Si $\text{bytes.size} < \text{expectedSize}$, determina de forma inmediata que el payload ha sido truncado (por ejemplo, cortado a 4.096 caracteres por WhatsApp o por un copiado parcial del mensaje) y devuelve deterministamente `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`.
+       - Esta comprobación preventiva impide que Android o la biblioteca de decodificación intenten procesar un flujo incompleto, evitando que se muestre una imagen en negro o deformada en pantalla y permitiendo presentar un mensaje de error claro al usuario (`CB-17`).
+    4. El decodificador reconstruye el `PixelGrid` original a color en memoria **100 % offline (cero peticiones de red)** y actualiza la vista con `ImageSourceOrigin.DEEP_LINK`. Si el payload no es una imagen válida o está dañado, emite `ImageDecodeError.InvalidOrCorruptedImage` sin provocar excepciones no controladas.
 
 - **Criterio 07.5 — Visor Web Estático de Respaldo (`docs/index.html`) con Banner App Directo:**
   - **Given:** Un destinatario que abre el enlace en un navegador web (Chrome, Safari, Firefox, Edge en Android, iOS o escritorio).
@@ -441,10 +458,11 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
 3. **Fórmula de Luminancia Perceptual (`BT.709`):** Para un píxel sRGB compuesto sobre el fondo base:
    `Y = 0.2126f * R_norm + 0.7152f * G_norm + 0.0722f * B_norm`, acotado en `[0.0f, 1.0f]`.
 4. **Sanitización de Envoltorio Markdown:** Ninguna rampa de caracteres podrá contener el carácter acento grave `` ` `` para impedir el cierre prematuro del bloque ```` ``` ```` en WhatsApp o Telegram.
-5. **Invariante de No-Fragmentación en Telegram ($\le 3.900$ caracteres):** Para cualquier mensaje generado bajo el perfil `ImPlatformPreset.TELEGRAM`:
-   - En modo híbrido dual (`includeTextArt == true` y `attachDeepLink == true`): $\text{length}(\text{arte}) + 1 + \text{length}(\text{url}) \le 3.900$.
-   - En modo solo enlace HD (`includeTextArt == false` y `attachDeepLink == true`): $\text{length}(\text{url}) \le 3.900$.
-   El margen determinista de $4.096 - 3.900 = 196$ caracteres salvaguarda contra particiones no deseadas en burbujas múltiples de chat.
+5. **Invariante de Cota Máxima de Enlace Seguro (`MAX_SAFE_URL_LENGTH = 3.800` caracteres) y Límites de WhatsApp y Telegram:**
+   Para cualquier enlace Deep Link autónomo generado (`#d=...`):
+   - $\text{length}(\text{url}) \le \text{MAX\_SAFE\_URL\_LENGTH} = 3.800$ caracteres en **todas** las plataformas soportadas y combinaciones de modos (estándar o expandido HD en WhatsApp y Telegram).
+   - *Justificación técnica:* WhatsApp y la pila IPC/componentes de renderizado de texto de Android aplican un truncamiento forzado en tokens y URLs continuas (cadenas sin espacios) a los 4.096 caracteres exactos. Igualmente, Telegram corta mensajes a los 4.096 caracteres partiéndolos en dos burbujas. El margen de seguridad de $4.096 - 3.800 = 296$ caracteres garantiza total inmunidad frente a recortes destructivos de URL y particiones de burbuja.
+   - En Telegram bajo modo híbrido dual (`includeTextArt == true` y `attachDeepLink == true`), se cumple complementariamente $\text{length}(\text{arte}) + 1 + \text{length}(\text{url}) \le 3.900$ con $\text{length}(\text{url}) \le 3.800$.
 6. **Invariante de Eficiencia de Códec WebP Lossy:** El generador de enlaces autónomos produce exclusivamente flujos WebP Lossy (`WEBP_LOSSY` / `WEBP`), garantizando un ahorro del 35% al 50% de caracteres frente a JPEG para idéntica fidelidad perceptual.
 7. **Invariante de Extracción Determinista de Payloads en Portapapeles:**
    La extracción de payloads desde el portapapeles se realiza mediante un analizador determinista tolerante (patrón regex estricto sin retroceso catastrófico):
@@ -452,6 +470,8 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
    garantizando un procesamiento lineal $O(N)$ sobre la longitud del texto copiado ($N \le 70.000$ caracteres), aislando con precisión el payload WebP aunque el usuario copie el mensaje completo con arte de texto y comentarios.
 8. **Invariante de Privacidad Efímera en Portapapeles (Cero Persistencia de Datos Personales):**
    El portapapeles del sistema se inspecciona única y exclusivamente para identificar si contiene un payload fotográfico compatible con `img2asciiIM`. Ningún texto de chat, contraseña o dato personal no relacionado se almacena en memoria secundaria, disco, base de datos ni registros de log (`Logcat`), respetando la privacidad absoluta del usuario.
+9. **Invariante de Guardia de Integridad de Cabecera RIFF WebP en Recepción:**
+   Todo flujo binario decodificado con cabecera `"RIFF"` (`0x52 0x49 0x46 0x46`) y `"WEBP"` (`0x57 0x45 0x42 0x50`) debe satisfacer estrictamente $\text{bytes.size} \ge \text{expectedPayloadSize}$, donde $\text{expectedPayloadSize} = \text{readLittleEndian32}(\text{bytes}[4..7]) + 8$. Si $\text{bytes.size} < \text{expectedPayloadSize}$, el payload se clasifica como truncado (por clientes IM como WhatsApp o copiado incompleto) y se rechaza deterministamente como `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`, impidiendo el renderizado de imágenes en negro o flujos corruptos.
 
 ---
 
@@ -489,8 +509,9 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
 | **CB-12** | **Arranque de la aplicación sin imagen precargada (Empty State)** | La aplicación inicia en un estado limpio interactivo sin instanciar bitmaps demo ni disparar el pipeline de conversión, manteniendo el consumo de memoria en el mínimo basal e invitando explícitamente a cargar fotos desde Galería, Archivos/Drive o Cámara. | `ui/` |
 | **CB-13** | **Portapapeles con texto arbitrario o sin payload fotográfico (ej. texto de chat normal)** | El extractor determina que la cadena no contiene un payload válido de `img2asciiIM`. En `onResume` no realiza ninguna acción intrusiva; si el usuario pulsó el chip «Portapapeles», muestra una notificación informativa (*«El portapapeles no contiene un enlace ni una foto de img2asciiIM»*) sin alterar la imagen en pantalla. | `data/` + `ui/` |
 | **CB-14** | **Portapapeles vacío o con tipos de datos no textuales (audio, clip binario)** | `ClipboardManager.primaryClip` es `null` o no contiene elementos con texto plano; el adaptador maneja la ausencia de forma segura sin excepciones `NullPointerException`. | `data/` + `ui/` |
-| **CB-15** | **Portapapeles con payload WebP truncado o corrupto por copiado parcial en el chat** | `DeepLinkImageCodec` captura de forma segura `IllegalArgumentException` o fallos de decodificación devolviendo `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`, informando al usuario en la UI para que copie el enlace completo. | `data/` + `ui/` |
+| **CB-15** | **Portapapeles con payload WebP truncado o corrupto por copiado manual incompleto en el chat** | `DeepLinkImageCodec` aplica la guardia de integridad de cabecera RIFF WebP y captura de forma segura `IllegalArgumentException` o fallos de decodificación devolviendo `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`, informando al usuario en la UI para que copie el enlace completo. | `data/` + `ui/` |
 | **CB-16** | **Dispositivo OEM o versión Android sin soporte para `ACTION_APP_OPEN_BY_DEFAULT_SETTINGS`** | La app captura `ActivityNotFoundException` y redirige inmediatamente a `Settings.ACTION_APPLICATION_DETAILS_SETTINGS`, garantizando que el usuario acceda siempre a la configuración de la app en Ajustes del sistema. | `ui/` |
+| **CB-17** | **Payload truncado por cliente de mensajería (límite duro de 4.096 caracteres en WhatsApp o enlaces de versiones anteriores sin cota de 3.800 chars)** | Cuando un remitente envía un enlace de una versión antigua sin acotación o el cliente de mensajería (WhatsApp/Android) trunca la URL continua al alcanzar los 4.096 caracteres, faltan los bytes finales del WebP. En recepción (vía App Link, visor web o portapapeles), `DeepLinkImageCodec` comprueba la guardia de cabecera RIFF WebP ($\text{bytes.size} < \text{expectedSize}$), detecta el truncamiento preventivamente antes de decodificar (evitando que Android intente decodificar bytes incompletos y pinte una imagen en negro o corrupta) y devuelve `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`. La UI notifica que el enlace fue cortado por el cliente de mensajería y sugiere solicitar el reenvío desde una versión actualizada. | `data/` + `ui/` |
 
 ---
 
@@ -507,9 +528,9 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
 | `RNF-01`, `RNF-02`, `RNF-04`, `CA-05.2` | `e2e` | Instrumentado USB/Wi-Fi (`Slice 7`) | `EndToEndConversionAndroidTest` (incluyendo chequeo E2E de *cold start*) |
 | `CA-05.1`, `CA-05.2`, `CA-05.3`, `CB-07` | `res` + `ui` | Robolectric + Assets (`Slice 8`) | `BrandAssetsAndSplashTest` (`BrandAssetsAndSplashRobolectricTest` + chequeo de arranque) |
 | `CA-06.1`, `CA-06.2`, `RNF-07` | `ui` | Robolectric + USB (`Slice 9`) | `ConverterScreenRobolectricTest`, `BottomActionControlsTest` |
-| `CA-07.1..07.5`, `CB-08`, `CB-09` | `data` + `ui` | Unit JVM + Robolectric (`Slice 10`) | `DeepLinkImageCodecTest`, `ConverterViewModelTest`, `ConverterScreenRobolectricTest` |
+| `CA-07.1..07.5`, `CB-08`, `CB-09`, `CB-17` | `data` + `ui` | Unit JVM + Robolectric (`Slice 10`) | `DeepLinkImageCodecTest`, `ConverterViewModelTest`, `ConverterScreenRobolectricTest` |
 | `CA-08.1..08.5`, `RNF-08`, `CB-10` | `data` + `ci` | Unit JVM + CI/CD (`Slice 11`) | `GitHubUpdateCheckerTest`, `.github/workflows/release.yml` |
-| `CA-01.7`, `CA-09.1..09.5`, `RNF-09`, `CB-13..16` | `data` + `ui` | Unit JVM + Robolectric (`Slice 12`) | `ClipboardImageExtractorTest`, `ConverterViewModelClipboardTest`, `NativeLinksSettingsTest` |
+| `CA-01.7`, `CA-09.1..09.5`, `RNF-09`, `CB-13..17` | `data` + `ui` | Unit JVM + Robolectric (`Slice 12`) | `ClipboardImageExtractorTest`, `ConverterViewModelClipboardTest`, `NativeLinksSettingsTest` |
 
 ---
 
@@ -544,9 +565,9 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
 - **Opción B:** Mismo diseño de icono adaptativo/monocromo e imágenes de launch, pero con **Splash Screen 100% estática** (`VectorDrawable` fijo sin animación de entrada ni imagen inferior de *branding*).
 - **Estado:** `[x] Aprobada: Opción A`
 
-### DD-06: Conmutadores Modulares, Códec WebP Lossy, Redimensionamiento Adaptativo y Enlaces HD (`#d=...`)
-- **Opción A (Recomendada y Aprobada):** Permitir conmutar independientemente `[x] Incluir arte de texto (ASCII / Braille)` y `[x] Adjuntar enlace a foto HD (#d=...)`. Emplear el códec **WebP Lossy** (ahorro 35–50% frente a JPEG), prefijo corto `#d=<base64>`, redimensionamiento adaptativo estricto con garantía anti-división en Telegram (máx `3.900` chars en modo enlace HD, o `3.900 - art.length - 1` en modo híbrido dual recalculando dinámicamente dimensiones y calidad), entrega **Clipboard-First** en WhatsApp para soportar hasta `65.536` caracteres protegiendo contra recortes de IPC en Android, y supresión total de textos superfluos como `"📸 Ver foto..."` para maximizar la resolución nítida.
-- **Opción B:** Forzar siempre la presencia del arte de texto con códec JPEG tradicional, prefijos de texto explicativos y dimensiones estáticas sin recálculo adaptativo.
+### DD-06: Conmutadores Modulares, Códec WebP Lossy, Redimensionamiento Adaptativo Estricto, Cota Universal `MAX_SAFE_URL_LENGTH = 3.800` y Límite Duro de WhatsApp (4.096 chars)
+- **Opción A (Recomendada y Aprobada):** Permitir conmutar independientemente `[x] Incluir arte de texto (ASCII / Braille)` y `[x] Adjuntar enlace a foto HD (#d=...)`. Emplear el códec **WebP Lossy** (ahorro 35–50% frente a JPEG), prefijo corto `#d=<base64>` y restricción universal de enlace seguro **`MAX_SAFE_URL_LENGTH = 3.800` caracteres** tanto en WhatsApp como en Telegram (evitando el límite duro de WhatsApp y la pila Android que corta cadenas continuas a los 4.096 chars, así como la división en dos burbujas en Telegram). Incorporar algoritmo de reducción adaptativa estricto de 4 fases para convergencia determinista a $\le \text{budget}$, entrega **Clipboard-First** en WhatsApp para textos extensos, y **guardia de integridad de cabecera RIFF WebP** en recepción para detectar proactivamente enlaces truncados (`CB-15`, `CB-17`) evitando renderizar imágenes en negro o corruptas.
+- **Opción B:** Forzar siempre la presencia del arte de texto con códec JPEG tradicional, prefijos de texto explicativos, dimensiones estáticas sin recálculo adaptativo ni comprobación de cabecera RIFF.
 - **Estado:** `[x] Aprobada: Opción A`
 
 ### DD-07: Distribución Autónoma de Releases Firmadas y Actualizaciones In-App

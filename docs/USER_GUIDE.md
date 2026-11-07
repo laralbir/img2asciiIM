@@ -208,13 +208,13 @@ Al tocar arriba **WhatsApp**, **Telegram** o **Instagram Direct**, `img2asciiIM`
 
 | App de Destino | Qué hace `img2asciiIM` automáticamente | Modo Inicial | Límite Seguro |
 | :--- | :--- | :--- | :--- |
-| **WhatsApp** *(y WhatsApp Business)* | Envuelve el dibujo en triple tilde ```` ```...``` ```` para activar la **letra monoespaciada** (ancho fijo), elimina símbolos que romperían el formato y ajusta el ancho a **`~32` columnas** para pantallas verticales. | **ASCII** *(admite Braille y Bloques)* | Hasta `65.536` caracteres *(ajuste ágil `≤ 4.000`)* |
-| **Telegram** | Ajusta automáticamente el tamaño para no superar jamás los **`4.096` caracteres** (evitando que Telegram parta tu imagen en dos mensajes distintos) y usa **Braille directo** (`~30` columnas) limpio y de alta resolución. | **Braille** *(admite ASCII y Bloques)* | **`4.096` caracteres** exactos |
+| **WhatsApp** *(y WhatsApp Business)* | Envuelve el dibujo en triple tilde ```` ```...``` ```` para activar la **letra monoespaciada** (ancho fijo), elimina símbolos que romperían el formato, ajusta el ancho a **`~32` columnas** para pantallas verticales y restringe los enlaces continuos por debajo de **`3.800` caracteres** para evitar el corte a 4.096 chars de WhatsApp. | **ASCII** *(admite Braille y Bloques)* | Hasta `65.536` caracteres multilínea *(enlaces `≤ 3.800`)* |
+| **Telegram** | Ajusta automáticamente el tamaño para no superar jamás los **`4.096` caracteres** (fijando un tope de **`3.800` caracteres** en enlaces y `3.900` en mensajes híbridos para evitar que Telegram parta tu imagen en dos burbujas) y usa **Braille directo** (`~30` columnas) limpio y de alta resolución. | **Braille** *(admite ASCII y Bloques)* | **`4.096` caracteres** exactos |
 | **Instagram Direct** | Desactiva los símbolos ```` ``` ```` (Instagram no los soporta), activa **Braille Unicode** con espacios especiales indestructibles (`⠀`) que mantienen la forma perfecta en la fuente normal de Instagram, y compacta el tamaño (`~22–24` columnas) por debajo de **`1.000` caracteres**. | **Braille** *(o Bloques)* | **`1.000` caracteres** estrictos |
 
 ### Detalles clave de cada plataforma
 
-- **En WhatsApp:** WhatsApp exige el bloque ```` ``` ```` para alinear las columnas, pero tiene una trampa oculta: si el dibujo contiene una tilde invertida `` ` `` o empieza con espacios normales en blanco, WhatsApp desactiva el formato monoespaciado y desarma toda la imagen. `img2asciiIM` filtra y sustituye automáticamente esos caracteres para que el bloque **nunca se rompa**.
+- **En WhatsApp:** WhatsApp exige el bloque ```` ``` ```` para alinear las columnas, pero tiene dos particularidades esenciales: (1) si el dibujo contiene una tilde invertida `` ` `` o empieza con espacios normales en blanco, WhatsApp desactiva el formato monoespaciado y desarma la imagen; (2) **WhatsApp y el sistema Android cortan cualquier enlace o token continuo sin espacios a los 4.096 caracteres exactos**. Por eso `img2asciiIM` filtra caracteres incompatibles y **limita todos los enlaces generados a un máximo de 3.800 caracteres**, evitando que WhatsApp corte el mensaje o muestre una imagen en negro al destinatario.
 - **En Telegram:** Si intentas mandar una captura de pantalla muy alargada que supere `4.096` caracteres, Telegram normalmente corta el texto en dos burbujas separadas. `img2asciiIM` **recalcula las proporciones de forma automática** para que tu imagen entre siempre entera en **un único mensaje**. Además, si cambias manualmente a modo ASCII clásico, añade un salto de línea protector tras ```` ``` ```` para que Telegram no borre la primera fila confundiéndola con el nombre de un lenguaje de programación.
 - **En Instagram Direct:** Instagram Direct no tiene letra monoespaciada (una `W` es mucho más ancha que un punto `.`) y además encoge los espacios normales. Por eso `img2asciiIM` utiliza el modo especial **Braille Unicode (`⠀..⣿`)**: Android dibuja todas las celdas Braille con el mismo ancho —incluida la celda vacía especial `⠀`— logrando que la imagen mantenga su geometría exacta dentro del estricto tope de `1.000` caracteres.
 
@@ -284,7 +284,7 @@ flowchart TD
     Eleccion{"¿Qué componentes activas en Paso 4?"}
     Eleccion -->|"Solo Arte de Texto"| Modo1["Modo Clásico (Ultraligero)\nMensaje de texto puro (2-4 KB)\nMáxima privacidad y compatibilidad"]
     Eleccion -->|"Arte + Enlace HD"| Modo2["Modo Híbrido Dual (Anti-División)\nDibujo + Enlace WebP (#d=...)\nAjuste automático a 1 sola burbuja"]
-    Eleccion -->|"Solo Enlace HD"| Modo3["Modo Enlace HD Puro (Máxima Nitidez WebP)\nTodo el presupuesto para la foto\nWhatsApp: 720-800 px (calidad 75-80)\nTelegram: 200-280 px (calidad 45-65)"]
+    Eleccion -->|"Solo Enlace HD"| Modo3["Modo Enlace HD Puro (Máxima Nitidez WebP)\nTodo el presupuesto para la foto\nWhatsApp y Telegram: Cota segura ≤ 3.800 chars\nCero imágenes en negro · Cero enlaces cortados"]
 ```
 
 ### Los 3 Modos de Envío según tu Necesidad
@@ -303,15 +303,17 @@ flowchart TD
   ```
 - **Sin textos superfluos:** Se eliminan cadenas decorativas como `"📸 Ver foto..."` o `"🔗 Ver foto..."`, ahorrando decenas de caracteres para dar más nitidez a la imagen.
 - **Garantía Anti-División en Telegram:** Telegram corta cualquier mensaje que supere los 4.096 caracteres, dividiéndolo en dos burbujas separadas. `img2asciiIM` lo evita por completo: fija un **presupuesto máximo de 3.900 caracteres** y calcula automáticamente:
-  $$\text{Presupuesto Enlace} = 3.900 - \text{Longitud del Arte} - 1$$
+  $$\text{Presupuesto Enlace} = \min(3.800, 3.900 - \text{Longitud del Arte} - 1)$$
   Si tu dibujo es grande, el codificador reduce la resolución y la calidad WebP de la foto al vuelo para que la suma total **quepa siempre dentro de un único mensaje de chat**.
 
 #### 3. Modo Enlace HD Puro: Máxima Nitidez Fotográfica *(Sin Arte de Texto)*
 - **Ajuste:** `[ ] Incluir arte de texto` desactivado · `[x] Adjuntar enlace a foto HD` activado.
 - **El secreto:** Al apagar el dibujo de texto, **todo el presupuesto de caracteres de la app de mensajería se dedica íntegramente a la fotografía incrustada en el enlace**.
-- **Códec WebP Lossy (Ahorro del 35 % al 50 %):** Gracias al formato moderno WebP Lossy, las imágenes ocupan casi la mitad que en JPEG a la misma calidad visual, permitiendo resoluciones mucho más altas:
-  - **En WhatsApp:** WhatsApp admite mensajes gigantescos de hasta **`65.536` caracteres**. `img2asciiIM` escala la foto a **`720` a `800` píxeles a calidad 75–80** (payload WebP de ~20–35 KB).
-  - **En Telegram:** Se ajusta a la cota estricta de **`3.900` caracteres**, escalando la foto a **`200` a `280` píxeles a calidad 45–65**, garantizando que llegue limpia y en una **única burbuja sin fragmentarse**.
+- **Códec WebP Lossy y Cota Universal Segura (`MAX_SAFE_URL_LENGTH = 3.800` caracteres):** Gracias al formato moderno WebP Lossy, las imágenes ocupan casi la mitad que en JPEG a la misma calidad visual:
+  - **Límite duro de WhatsApp (4.096 caracteres continuos):** Aunque WhatsApp permite textos con saltos de línea de hasta 65.536 caracteres, **la aplicación WhatsApp y Android truncan automáticamente a los 4.096 caracteres cualquier enlace continuo sin espacios**. Si un enlace supera los 4.096 caracteres, WhatsApp recorta los caracteres del final, rompiendo el archivo WebP y provocando que el receptor vea una **imagen en negro o dañada**.
+  - **La solución infalible de `img2asciiIM`:** Todos los enlaces generados se mantienen estrictamente por debajo de los **`3.800` caracteres** (`MAX_SAFE_URL_LENGTH`). Con este margen de casi 300 caracteres de seguridad frente al corte de 4.096 chars, **WhatsApp jamás corta el enlace ni muestra imágenes en negro**.
+  - **En WhatsApp:** `img2asciiIM` adapta la resolución y calidad WebP al vuelo mediante reducción adaptativa, garantizando que el enlace quepa íntegro bajo los `3.800` caracteres con excelente nitidez.
+  - **En Telegram:** Se ajusta igualmente a la cota de **`3.800` caracteres** (y un presupuesto combinado de `3.900` chars en modo híbrido con arte de texto), garantizando que llegue siempre en una **única burbuja sin fragmentarse**.
 - **El resultado en el chat:** Tu mensaje queda completamente limpio y directo, compartiendo únicamente la URL:
   ```text
   https://laralbir.github.io/img2asciiIM/#d=...
@@ -373,6 +375,13 @@ https://laralbir.github.io/img2asciiIM/#d=UklGRvAAAABXRUJQVlA4...
 2. Esa secuencia se coloca detrás del identificador corto **`#d=`** (*hash fragment*).
 3. Para el router del avión y para la aplicación de chat, ese enlace es simplemente **un mensaje de texto plano ordinario**, por lo que **atraviesa el cortafuegos satelital sin ningún bloqueo**.
 4. La parte detrás del `#` jamás se transmite a ningún servidor de internet ni a terceros: se procesa íntegramente en el dispositivo de quien abre el enlace.
+
+> [!IMPORTANT]
+> **Límite Seguro de 3.800 Caracteres y Guardia de Integridad RIFF WebP:**
+> - **¿Por qué los enlaces se mantienen estrictamente bajo los 3.800 caracteres?**  
+>   Aunque WhatsApp permite mensajes de texto largos con saltos de línea, **WhatsApp y el sistema Android aplican un truncamiento duro e implacable a los 4.096 caracteres continuos** (cadenas sin espacios). Si un enlace superase ese tamaño, WhatsApp lo cortaría de inmediato al enviarlo o pegarlo, perdiendo los bytes finales del archivo WebP y provocando que el receptor vea una **imagen completamente en negro o dañada**. Al limitar cualquier enlace generado a un máximo estricto de **`3.800` caracteres** (`MAX_SAFE_URL_LENGTH`), `img2asciiIM` garantiza un margen de seguridad de casi 300 caracteres que hace al enlace 100 % inmune a recortes en WhatsApp y a divisiones de burbuja en Telegram.
+> - **Guardia de Integridad RIFF WebP en Recepción:**  
+>   Al abrir o importar cualquier enlace (desde el portapapeles o mediante App Link), `img2asciiIM` inspecciona la cabecera del archivo WebP y comprueba que el tamaño real recibido coincida con el tamaño declarado en el contenedor RIFF. Si detecta que faltan datos (por ejemplo, porque un cliente antiguo de WhatsApp cortó el enlace a los 4.096 caracteres), la aplicación te avisa con un mensaje explicativo claro en lugar de intentar pintar una imagen en negro o deformada.
 
 ### Qué Ocurre Cuando tu Amigo Abre el Enlace (y Cómo Abrirlo en la App)
 
@@ -452,7 +461,24 @@ Cada actualización oficial de `img2asciiIM` se compila y firma automáticamente
 ---
 
 ### «¿Por qué se ve mejor la foto cuando apago el conmutador de arte de texto?»
-Al desactivar el arte de texto (ASCII / Braille), el mensaje no tiene que reservar caracteres para dibujar filas de puntos. Todo el cupo disponible (hasta **`65.536` caracteres en WhatsApp** o **`3.900` en Telegram**) pasa a estar disponible para la foto del enlace, permitiendo a la app comprimir la imagen en **WebP Lossy** con una resolución mucho mayor (**`720` a `800` píxeles en WhatsApp**) y una nitidez fotográfica visiblemente superior.
+Al desactivar el arte de texto (ASCII / Braille), el mensaje no tiene que reservar caracteres para dibujar filas de puntos. Todo el cupo disponible dentro del límite seguro (**`3.800` caracteres**, para evitar que WhatsApp corte los enlaces o Telegram divida el mensaje) pasa a dedicarse íntegramente a la foto del enlace, permitiendo a la app comprimir la imagen en **WebP Lossy** con mayor resolución y una nitidez fotográfica visiblemente superior sin riesgo de cortes.
+
+---
+
+### «¿Por qué los enlaces generados ahora se mantienen bajo los 3.800 caracteres si WhatsApp permite mensajes de hasta 65.536 caracteres?»
+**Causa:** WhatsApp tolera mensajes de texto extensos (hasta 65.536 caracteres) cuando el texto está compuesto por palabras ordinarias y saltos de línea. Sin embargo, **tanto WhatsApp como la pila del sistema Android aplican un corte forzado a los 4.096 caracteres exactos ante cualquier palabra o enlace continuo sin espacios en blanco**.  
+Si un enlace sobrepasara los 4.096 caracteres, WhatsApp lo cortaría de forma destructiva al enviarlo o pegarlo. Al perderse los caracteres finales de la cadena Base64, el archivo WebP queda corrupto y el destinatario experimenta un fallo de apertura o una desconcertante **pantalla o imagen en negro**.  
+**La solución:** `img2asciiIM` fija una cota universal de seguridad de **`MAX_SAFE_URL_LENGTH = 3.800` caracteres** para todas las aplicaciones y modos. Este margen de seguridad de casi 300 caracteres garantiza que ningún enlace sufra cortes, no provoque imágenes en negro y tampoco se divida en dos burbujas en Telegram (cuyo tope de mensaje también es 4.096 chars).
+
+---
+
+### «¿Qué hago si recibo un enlace cortado o con imagen en negro enviado desde una versión antigua?»
+**Causa:** En versiones previas de la app (o si alguien comparte un enlace sin respetar la cota de 3.800 caracteres), WhatsApp truncó los datos de la imagen al alcanzar su límite duro de 4.096 caracteres continuos. En receptores antiguos, el decodificador de Android intentaba procesar el flujo incompleto y mostraba un recuadro o imagen completamente en negro.  
+**Protección actual en `img2asciiIM`:** La aplicación incluye una **guardia de integridad de cabecera RIFF WebP**: al importar el enlace desde el portapapeles o abrirlo como App Link, la app compara el tamaño recibido con los bytes declarados en la cabecera. Si detecta que el enlace fue cortado a los 4.096 caracteres, bloquea la decodificación fallida y te muestra un aviso claro: *«El enlace recibido fue truncado por la aplicación de mensajería (límite de 4.096 caracteres)»*.  
+**Solución recomendada:**
+1. **Actualizar la app:** Pide a tu contacto que actualice `img2asciiIM` a la última versión disponible (a través del botón «Comprobar actualizaciones» o desde GitHub Releases).
+2. **Reenviar la foto:** Desde la versión actualizada, todos los enlaces generados se adaptan automáticamente para mantenerse bajo los 3.800 caracteres y llegarán enteros sin cortes.
+3. **Alternativa inmediata en vuelo:** Si tu contacto no puede actualizar en ese instante, pídele que desactive el conmutador de enlace HD y te mande la imagen en **Solo Arte de Texto (Braille o ASCII)**. El texto con saltos de línea no sufre el límite de 4.096 caracteres de enlaces continuos y atravesará el chat a la perfección.
 
 ---
 

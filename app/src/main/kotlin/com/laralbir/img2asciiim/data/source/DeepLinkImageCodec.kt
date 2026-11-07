@@ -16,11 +16,12 @@ import java.io.ByteArrayOutputStream
  *
  * - [STANDARD]: Modo estándar (cuando se incluye arte ASCII). Conserva dimensiones compactas
  *   ([DeepLinkImageCodec.STANDARD_MAX_DIMENSION] px, calidad [DeepLinkImageCodec.STANDARD_QUALITY]),
- *   generando un payload de ~6–10 KB para acompañar al arte de texto sin desbordar los límites del mensaje.
+ *   generando un payload seguro para acompañar al arte de texto sin desbordar los límites del mensaje.
  * - [EXPANDED_HD]: Modo expandido / HD (cuando NO se incluye arte ASCII). Adapta la resolución
- *   y la calidad WebP al presupuesto de caracteres de la plataforma destino:
+ *   y la calidad WebP al presupuesto estricto de [DeepLinkImageCodec.MAX_SAFE_URL_LENGTH] caracteres
+ *   para evitar el truncado de 4096 caracteres en WhatsApp o Telegram:
  *   - WhatsApp: [DeepLinkImageCodec.EXPANDED_WHATSAPP_MAX_DIMENSION] px, calidad [DeepLinkImageCodec.EXPANDED_WHATSAPP_QUALITY]
- *     (presupuesto hasta [DeepLinkImageCodec.WHATSAPP_EXPANDED_BUDGET] caracteres).
+ *     (presupuesto seguro de [DeepLinkImageCodec.WHATSAPP_EXPANDED_BUDGET] caracteres).
  *   - Telegram: [DeepLinkImageCodec.EXPANDED_TELEGRAM_MAX_DIMENSION] px, calidad [DeepLinkImageCodec.EXPANDED_TELEGRAM_QUALITY]
  *     (presupuesto estricto de [DeepLinkImageCodec.TELEGRAM_BUDGET] caracteres con margen de seguridad).
  */
@@ -82,13 +83,18 @@ open class DeepLinkImageCodec {
     var currentQuality = initialProfile.quality
     var url = encodeToDeepLink(pixelGrid, maxDimension = currentDim, quality = currentQuality)
 
-    val budget = maxCharacterBudget ?: when (preset) {
+    val platformBudget = when (preset) {
       ImPlatformPreset.TELEGRAM -> TELEGRAM_BUDGET
       ImPlatformPreset.WHATSAPP -> when (mode) {
         DeepLinkMode.STANDARD -> WHATSAPP_STANDARD_BUDGET
         DeepLinkMode.EXPANDED_HD -> WHATSAPP_EXPANDED_BUDGET
       }
-      ImPlatformPreset.INSTAGRAM_DIRECT -> 900
+      ImPlatformPreset.INSTAGRAM_DIRECT -> INSTAGRAM_DIRECT_BUDGET
+    }
+    val budget = if (maxCharacterBudget != null) {
+      minOf(maxCharacterBudget, minOf(platformBudget, MAX_SAFE_URL_LENGTH))
+    } else {
+      minOf(platformBudget, MAX_SAFE_URL_LENGTH)
     }
 
     if (url.length > budget) {
@@ -206,6 +212,19 @@ open class DeepLinkImageCodec {
       return DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)
     }
 
+    if (bytes.size >= 8 &&
+      bytes[0] == 'R'.code.toByte() && bytes[1] == 'I'.code.toByte() &&
+      bytes[2] == 'F'.code.toByte() && bytes[3] == 'F'.code.toByte()
+    ) {
+      val expectedFileSize = (bytes[4].toInt() and 0xFF) or
+        ((bytes[5].toInt() and 0xFF) shl 8) or
+        ((bytes[6].toInt() and 0xFF) shl 16) or
+        ((bytes[7].toInt() and 0xFF) shl 24) + 8
+      if (bytes.size < expectedFileSize) {
+        return DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)
+      }
+    }
+
     val bitmap = try {
       BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     } catch (_: RuntimeException) {
@@ -302,23 +321,27 @@ open class DeepLinkImageCodec {
   companion object {
     const val DEEP_LINK_BASE = "https://laralbir.github.io/img2asciiIM/"
 
+    // Strict safe URL length limit to prevent WhatsApp or Telegram truncation at 4096 characters
+    const val MAX_SAFE_URL_LENGTH = 3_800
+
     // Character budgets
-    const val TELEGRAM_BUDGET = 3_900
-    const val WHATSAPP_STANDARD_BUDGET = 8_000
-    const val WHATSAPP_EXPANDED_BUDGET = 60_000
+    const val TELEGRAM_BUDGET = 3_800
+    const val WHATSAPP_STANDARD_BUDGET = 3_800
+    const val WHATSAPP_EXPANDED_BUDGET = 3_800
+    const val INSTAGRAM_DIRECT_BUDGET = 900
 
     // Modo estándar (cuando se incluye arte ASCII)
-    const val STANDARD_MAX_DIMENSION = 320
-    const val STANDARD_QUALITY = 60
+    const val STANDARD_MAX_DIMENSION = 260
+    const val STANDARD_QUALITY = 55
 
     // Modo expandido/HD (cuando NO se incluye arte ASCII)
-    // WhatsApp: presupuesto holgado (60.000 caracteres)
-    const val EXPANDED_WHATSAPP_MAX_DIMENSION = 720
-    const val EXPANDED_WHATSAPP_QUALITY = 75
+    // WhatsApp: presupuesto seguro contra truncado a 4096 caracteres
+    const val EXPANDED_WHATSAPP_MAX_DIMENSION = 300
+    const val EXPANDED_WHATSAPP_QUALITY = 60
 
-    // Telegram: presupuesto estricto (3.900 caracteres)
-    const val EXPANDED_TELEGRAM_MAX_DIMENSION = 200
-    const val EXPANDED_TELEGRAM_QUALITY = 45
+    // Telegram: presupuesto estricto (3.800 caracteres)
+    const val EXPANDED_TELEGRAM_MAX_DIMENSION = 220
+    const val EXPANDED_TELEGRAM_QUALITY = 50
 
     // Aliases para compatibilidad hacia atrás
     const val DEFAULT_MAX_DIMENSION = STANDARD_MAX_DIMENSION

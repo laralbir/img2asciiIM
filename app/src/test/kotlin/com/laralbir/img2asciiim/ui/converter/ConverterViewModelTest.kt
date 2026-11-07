@@ -1,6 +1,7 @@
 package com.laralbir.img2asciiim.ui.converter
 
 import app.cash.turbine.test
+import com.laralbir.img2asciiim.data.source.DeepLinkImageCodec
 import com.laralbir.img2asciiim.domain.engine.DemoSampleImageFactory
 import com.laralbir.img2asciiim.domain.model.CharsetMode
 import com.laralbir.img2asciiim.domain.model.DecodedImage
@@ -587,8 +588,7 @@ class ConverterViewModelTest {
     assertEquals("$art\nhttps://laralbir.github.io/img2asciiIM/#data=fake_payload", linkedMessage)
     assertFalse(linkedMessage.contains("🔗 Ver foto"))
 
-    val expectedRemaining = (ImPlatformPreset.WHATSAPP.maxCharacters - art.length - 1).coerceAtLeast(200)
-    assertEquals(expectedRemaining, lastBudget)
+    assertEquals(DeepLinkImageCodec.MAX_SAFE_URL_LENGTH, lastBudget)
 
     // Sharing sends the linked message
     viewModel.onShareClicked()
@@ -638,7 +638,7 @@ class ConverterViewModelTest {
     assertFalse(message.contains("```"))
     assertFalse(message.contains("📸 Ver foto"))
     assertFalse(message.contains("🔗 Ver foto"))
-    assertEquals(ImPlatformPreset.WHATSAPP.maxCharacters, lastBudget)
+    assertEquals(DeepLinkImageCodec.MAX_SAFE_URL_LENGTH, lastBudget)
 
     viewModel.onCopyClicked()
     advanceUntilIdle()
@@ -677,18 +677,18 @@ class ConverterViewModelTest {
     assertEquals(28, ImPlatformPreset.TELEGRAM.defaultWidthColumns)
     assertTrue(ImPlatformPreset.TELEGRAM.usesClipboardFirst)
 
-    // 1. Expanded HD mode (no ASCII art) -> exactly 3_900 budget
+    // 1. Expanded HD mode (no ASCII art) -> capped to MAX_SAFE_URL_LENGTH (3_800)
     viewModel.onToggleIncludeAsciiArt(false)
     val hdMessage = viewModel.buildShareableMessage()
     assertEquals("https://laralbir.github.io/img2asciiIM/#data=fake_telegram_payload", hdMessage)
-    assertEquals(3_900, lastBudget)
+    assertEquals(DeepLinkImageCodec.MAX_SAFE_URL_LENGTH, lastBudget)
 
-    // 2. Standard mode (ASCII art + deep link) -> remainingBudget = (3_900 - art.length - 1).coerceAtLeast(200)
+    // 2. Standard mode (ASCII art + deep link) -> remainingBudget = (3_900 - art.length - 1).coerceIn(200, MAX_SAFE_URL_LENGTH)
     viewModel.onToggleIncludeAsciiArt(true)
     viewModel.onToggleAttachDeepLink(true)
     val standardMessage = viewModel.buildShareableMessage()
     val art = viewModel.uiState.value.conversionResult!!.formattedMessage
-    val expectedRemaining = (3_900 - art.length - 1).coerceAtLeast(200)
+    val expectedRemaining = (3_900 - art.length - 1).coerceIn(200, DeepLinkImageCodec.MAX_SAFE_URL_LENGTH)
     assertEquals(expectedRemaining, lastBudget)
     assertEquals("$art\nhttps://laralbir.github.io/img2asciiIM/#data=fake_telegram_payload", standardMessage)
   }
@@ -851,7 +851,10 @@ class ConverterViewModelTest {
       viewModel.onLoadFromClipboard()
       advanceUntilIdle()
       val snackbar = assertIs<ConverterUiEffect.ShowSnackbar>(awaitItem())
-      assertTrue(snackbar.message.contains("portapapeles"))
+      assertEquals(
+        "El enlace de la imagen está incompleto o dañado (WhatsApp recorta enlaces que superan 4096 caracteres).",
+        snackbar.message,
+      )
       cancelAndIgnoreRemainingEvents()
     }
   }

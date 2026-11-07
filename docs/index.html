@@ -156,6 +156,7 @@
       font-size: 0.9rem;
       color: var(--text-muted);
       text-align: center;
+      line-height: 1.5;
     }
 
     .hero-landing {
@@ -278,6 +279,9 @@
 
       function urlSafeBase64ToBlob(base64) {
         let normalized = base64.replace(/-/g, '+').replace(/_/g, '/');
+        if (normalized.length % 4 === 1) {
+          normalized = normalized.slice(0, -1);
+        }
         while (normalized.length % 4 !== 0) {
           normalized += '=';
         }
@@ -291,7 +295,15 @@
         if (byteArray.length > 2 && byteArray[0] === 0xFF && byteArray[1] === 0xD8) {
           mime = 'image/jpeg';
         }
-        return new Blob([byteArray], { type: mime });
+        const blob = new Blob([byteArray], { type: mime });
+        return {
+          blob: blob,
+          bytes: byteArray,
+          [Symbol.iterator]: function* () {
+            yield blob;
+            yield byteArray;
+          }
+        };
       }
 
       const payload = getPayload();
@@ -303,6 +315,7 @@
       const decodedImg = document.getElementById('decoded-image');
       const imageInfo = document.getElementById('image-info');
       const btnSave = document.getElementById('btn-save');
+      const viewerActions = viewerSection ? viewerSection.querySelector('.actions-row') : null;
 
       if (payload) {
         const isAndroid = /android/i.test(navigator.userAgent);
@@ -314,22 +327,63 @@
         if (btnOpenAppAction) btnOpenAppAction.href = targetUri;
 
         try {
-          const blob = urlSafeBase64ToBlob(payload);
-          const objectUrl = URL.createObjectURL(blob);
-          decodedImg.src = objectUrl;
-          btnSave.href = objectUrl;
+          const { blob, bytes } = urlSafeBase64ToBlob(payload);
 
-          decodedImg.onload = function () {
+          let isTruncated = false;
+          let expectedBytes = 0;
+
+          if (bytes.length >= 8 &&
+              bytes[0] === 0x52 &&
+              bytes[1] === 0x49 &&
+              bytes[2] === 0x46 &&
+              bytes[3] === 0x46) {
+            expectedBytes = (bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24)) + 8;
+            if (bytes.length < expectedBytes) {
+              isTruncated = true;
+            }
+          }
+
+          if (isTruncated) {
+            decodedImg.style.display = 'none';
+            if (decodedImg.parentElement) decodedImg.parentElement.style.display = 'none';
+            if (viewerActions) viewerActions.style.display = 'none';
+            if (btnSave) btnSave.style.display = 'none';
+            if (btnOpenAppAction) btnOpenAppAction.style.display = 'none';
+
             if (appBanner) appBanner.style.display = 'block';
             viewerSection.style.display = 'flex';
             landingSection.style.display = 'none';
-            imageInfo.textContent = `Fotografía original (${decodedImg.naturalWidth} × ${decodedImg.naturalHeight} px) decodificada 100% en tu navegador.`;
-          };
-          decodedImg.onerror = function () {
-            if (appBanner) appBanner.style.display = 'none';
-            viewerSection.style.display = 'none';
-            landingSection.style.display = 'flex';
-          };
+
+            imageInfo.innerHTML = `⚠️ <strong style="color: #F87171;">Fotografía incompleta:</strong> Este enlace fue recortado a 4096 caracteres por la aplicación de mensajería (recibidos ${bytes.length} bytes de ${expectedBytes} esperados).<br><br>💡 <em>Para evitar que WhatsApp corte los enlaces, utiliza la versión v1.0.3 o superior de <strong>img2asciiIM</strong> en tu móvil, la cual ajusta automáticamente el tamaño para que nunca se trunque.</em>`;
+          } else {
+            decodedImg.style.display = 'block';
+            if (decodedImg.parentElement) decodedImg.parentElement.style.display = 'flex';
+            if (viewerActions) viewerActions.style.display = 'flex';
+            if (btnSave) btnSave.style.display = 'inline-flex';
+            if (btnOpenAppAction) btnOpenAppAction.style.display = 'inline-flex';
+
+            if (appBanner) appBanner.style.display = 'block';
+            viewerSection.style.display = 'flex';
+            landingSection.style.display = 'none';
+
+            const objectUrl = URL.createObjectURL(blob);
+            decodedImg.src = objectUrl;
+            if (btnSave) btnSave.href = objectUrl;
+
+            decodedImg.onload = function () {
+              decodedImg.style.display = 'block';
+              if (decodedImg.parentElement) decodedImg.parentElement.style.display = 'flex';
+              if (viewerActions) viewerActions.style.display = 'flex';
+              if (btnSave) btnSave.style.display = 'inline-flex';
+              if (btnOpenAppAction) btnOpenAppAction.style.display = 'inline-flex';
+              imageInfo.textContent = `Fotografía original (${decodedImg.naturalWidth} × ${decodedImg.naturalHeight} px) decodificada 100% en tu navegador.`;
+            };
+            decodedImg.onerror = function () {
+              if (appBanner) appBanner.style.display = 'none';
+              viewerSection.style.display = 'none';
+              landingSection.style.display = 'flex';
+            };
+          }
         } catch (e) {
           console.error('Error decoding image payload:', e);
           if (appBanner) appBanner.style.display = 'none';
