@@ -158,7 +158,10 @@ class ConverterViewModel(
           )
         }
         is DomainResult.Failure -> {
-          val errorMessage = "El enlace de la imagen está incompleto o dañado (WhatsApp recorta enlaces que superan 4096 caracteres)."
+          val errorMessage = when (outcome.error) {
+            is ImageDecodeError.IncompleteMultiPart -> mapDecodeErrorMessage(outcome.error)
+            else -> "El enlace de la imagen está incompleto o dañado (WhatsApp recorta enlaces que superan 4096 caracteres)."
+          }
           _uiState.update { state ->
             state.copy(
               isLoadingImage = false,
@@ -220,6 +223,9 @@ class ConverterViewModel(
       trimmed.contains("&d=") ||
       trimmed.contains("?data=") ||
       trimmed.contains("&data=") ||
+      trimmed.contains("#p=") ||
+      trimmed.contains("?p=") ||
+      trimmed.contains("&p=") ||
       trimmed.contains("img2asciiim://") ||
       trimmed.contains("img2ascii://") ||
       trimmed.startsWith("UklGR") ||
@@ -573,6 +579,8 @@ class ConverterViewModel(
     ImageDecodeError.InvalidUriScheme,
     ImageDecodeError.SecurityViolation -> ERROR_SECURITY_BLOCKED
     ImageDecodeError.InvalidOrCorruptedImage -> ERROR_CORRUPTED_IMAGE
+    is ImageDecodeError.IncompleteMultiPart ->
+      "Parte ${error.currentPart} de ${error.totalParts} cargada. Abre o copia la parte restante para completar la foto."
     is ImageDecodeError.IoFailure -> ERROR_IO_FAILURE
   }
 

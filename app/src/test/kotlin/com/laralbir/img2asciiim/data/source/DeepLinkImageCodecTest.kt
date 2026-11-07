@@ -333,4 +333,38 @@ class DeepLinkImageCodecTest {
     assertTrue(result is DomainResult.Failure)
     assertEquals(ImageDecodeError.InvalidOrCorruptedImage, result.error)
   }
+
+  @Test
+  fun multiPartEncodingAndDecoding_reassemblesHighResolutionPixelGridSuccessfully() {
+    DeepLinkImageCodec.clearMultiPartCache()
+    val originalGrid = createSampleGrid(width = 200, height = 150)
+    val parts = codec.encodeToMultiPartDeepLinks(
+      pixelGrid = originalGrid,
+      parts = 2,
+      maxDimension = 200,
+      quality = 60,
+    )
+
+    assertEquals(2, parts.size)
+    assertTrue(parts[0].contains("p=1/2"))
+    assertTrue(parts[1].contains("p=2/2"))
+
+    // Case A: Receiving both parts combined (e.g. copied together from chat)
+    val combinedText = "${parts[0]}\n${parts[1]}"
+    val combinedResult = codec.decodeFromDeepLink(combinedText)
+    assertTrue(combinedResult is DomainResult.Success)
+    assertEquals(200, combinedResult.value.pixelGrid.width)
+    assertEquals(150, combinedResult.value.pixelGrid.height)
+
+    // Case B: Receiving parts sequentially (e.g. tapping link 1, then link 2)
+    DeepLinkImageCodec.clearMultiPartCache()
+    val part1Result = codec.decodeFromDeepLink(parts[0])
+    assertTrue(part1Result is DomainResult.Failure)
+    assertEquals(ImageDecodeError.IncompleteMultiPart(1, 2), part1Result.error)
+
+    val part2Result = codec.decodeFromDeepLink(parts[1])
+    assertTrue(part2Result is DomainResult.Success)
+    assertEquals(200, part2Result.value.pixelGrid.width)
+    assertEquals(150, part2Result.value.pixelGrid.height)
+  }
 }

@@ -894,9 +894,10 @@ class ConverterViewModelTest {
     assertEquals("64 × 48 px", state.sourceDimensionsLabel)
     assertNotNull(state.conversionResult)
     assertEquals(PreviewTab.REAL_IMAGE, state.previewTab)
-    assertNotNull(state.previewBitmap)
-    assertEquals(64, state.previewBitmap?.width)
-    assertEquals(48, state.previewBitmap?.height)
+    val previewBitmap = state.previewBitmap
+    assertNotNull(previewBitmap)
+    assertEquals(64, previewBitmap.width)
+    assertEquals(48, previewBitmap.height)
   }
 
   @Test
@@ -927,6 +928,36 @@ class ConverterViewModelTest {
     assertEquals(ImageSourceOrigin.CLIPBOARD, state.sourceOrigin)
     assertEquals("Enlace del portapapeles", state.sourceLabel)
     assertNotNull(state.conversionResult)
+  }
+
+  @Test
+  fun onLoadFromClipboard_whenMultiPartChunkIncomplete_emitsIncompleteMessage() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val fakeCodec = object : DeepLinkImageCodec() {
+      override fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
+        return DomainResult.Failure(ImageDecodeError.IncompleteMultiPart(currentPart = 1, totalParts = 2))
+      }
+    }
+    shareGateway.clipboardText = "https://laralbir.github.io/img2asciiIM/#id=xyz&p=1/2&d=chunk1"
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      deepLinkCodec = fakeCodec,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = false,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.onLoadFromClipboard()
+      advanceUntilIdle()
+      val effect = awaitItem()
+      assertIs<ConverterUiEffect.ShowSnackbar>(effect)
+      assertTrue(effect.message.contains("Parte 1 de 2 cargada"))
+      cancelAndIgnoreRemainingEvents()
+    }
   }
 
   @Test

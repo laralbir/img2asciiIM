@@ -190,14 +190,119 @@ open class DeepLinkImageCodec {
     return "$DEEP_LINK_BASE#d=$base64Payload"
   }
 
+  /**
+   * Encodes a [PixelGrid] into multiple deep link URLs (e.g. 2 parts),
+   * doubling or tripling the data budget for much higher resolution photos.
+   *
+   * Example:
+   * `https://laralbir.github.io/img2asciiIM/#id=abc&p=1/2&d=<chunk1>`
+   * `https://laralbir.github.io/img2asciiIM/#id=abc&p=2/2&d=<chunk2>`
+   */
+  open fun encodeToMultiPartDeepLinks(
+    pixelGrid: PixelGrid,
+    parts: Int = 2,
+    preset: ImPlatformPreset = ImPlatformPreset.WHATSAPP,
+    maxDimension: Int = 360,
+    quality: Int = 65,
+  ): List<String> {
+    require(parts >= 2) { "parts must be >= 2, was $parts" }
+    val srcW = pixelGrid.width
+    val srcH = pixelGrid.height
+    val scale = if (srcW > maxDimension || srcH > maxDimension) {
+      maxDimension.toFloat() / maxOf(srcW, srcH).toFloat()
+    } else {
+      1.0f
+    }
+    val targetW = (srcW * scale).toInt().coerceAtLeast(1)
+    val targetH = (srcH * scale).toInt().coerceAtLeast(1)
+
+    val srcBitmap = Bitmap.createBitmap(pixelGrid.argbPixels, srcW, srcH, Bitmap.Config.ARGB_8888)
+    val scaledBitmap = if (targetW != srcW || targetH != srcH) {
+      Bitmap.createScaledBitmap(srcBitmap, targetW, targetH, true)
+    } else {
+      srcBitmap
+    }
+
+    val outputStream = ByteArrayOutputStream()
+    val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      Bitmap.CompressFormat.WEBP_LOSSY
+    } else {
+      @Suppress("DEPRECATION")
+      Bitmap.CompressFormat.WEBP
+    }
+    scaledBitmap.compress(format, quality.coerceIn(1, 100), outputStream)
+    if (scaledBitmap != srcBitmap) {
+      scaledBitmap.recycle()
+    }
+    srcBitmap.recycle()
+
+    val compressedBytes = outputStream.toByteArray()
+    val base64 = Base64.encodeToString(
+      compressedBytes,
+      Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+    )
+
+    val imageId = kotlin.math.abs(compressedBytes.contentHashCode()).toString(36)
+    val totalLength = base64.length
+    val chunkSize = (totalLength + parts - 1) / parts
+
+    return (0 until parts).map { index ->
+      val start = index * chunkSize
+      val end = minOf(start + chunkSize, totalLength)
+      val chunk = if (start < totalLength) base64.substring(start, end) else ""
+      "$DEEP_LINK_BASE#id=$imageId&p=${index + 1}/$parts&d=$chunk"
+    }
+  }
+
   open fun decodeFromDeepLink(urlOrUri: String): DomainResult<DecodedImage, ImageDecodeError> {
     if (urlOrUri.isBlank()) {
       return DomainResult.Failure(ImageDecodeError.InvalidUriScheme)
     }
 
+    // Check multi-part chunks first
+    val multiPartMatches = MULTI_PART_REGEX.findAll(urlOrUri).toList()
+    if (multiPartMatches.isNotEmpty()) {
+      val grouped = multiPartMatches.groupBy { it.groupValues[1] }
+      for ((id, matches) in grouped) {
+        val totalParts = matches.first().groupValues[3].toIntOrNull() ?: 1
+        val partsMap = matches.associate {
+          it.groupValues[2].toInt() to it.groupValues[4]
+        }
+        if (partsMap.size == totalParts) {
+          val fullPayload = (1..totalParts).mapNotNull { partsMap[it] }.joinToString("")
+          return decodePayloadBytes(fullPayload)
+        } else {
+          val cacheKey = if (id.isNotEmpty()) id else "default_${totalParts}"
+          val sessionPayload = synchronized(multiPartCache) {
+            val map = multiPartCache.getOrPut(cacheKey) { mutableMapOf() }
+            map.putAll(partsMap)
+            if (map.size >= totalParts) {
+              val combined = (1..totalParts).mapNotNull { map[it] }.joinToString("")
+              multiPartCache.remove(cacheKey)
+              combined
+            } else {
+              null
+            }
+          }
+          if (sessionPayload != null) {
+            return decodePayloadBytes(sessionPayload)
+          } else {
+            val currentReceived = partsMap.keys.firstOrNull() ?: 1
+            return DomainResult.Failure(
+              ImageDecodeError.IncompleteMultiPart(currentReceived, totalParts)
+            )
+          }
+        }
+      }
+    }
+
     val base64Payload = extractPayload(urlOrUri)
       ?: return DomainResult.Failure(ImageDecodeError.InvalidUriScheme)
 
+    return decodePayloadBytes(base64Payload)
+  }
+
+  private fun decodePayloadBytes(base64Payload: String): DomainResult<DecodedImage, ImageDecodeError> {
     val bytes = try {
       try {
         Base64.decode(base64Payload, Base64.URL_SAFE or Base64.NO_WRAP)
@@ -319,6 +424,17 @@ open class DeepLinkImageCodec {
   }
 
   companion object {
+    private val MULTI_PART_REGEX = Regex(
+      """[#?&](?:id=([A-Za-z0-9_-]+)&)?p=(\d+)/(\d+)&(?:d|data)=([A-Za-z0-9_-]+)"""
+    )
+    private val multiPartCache = mutableMapOf<String, MutableMap<Int, String>>()
+
+    fun clearMultiPartCache() {
+      synchronized(multiPartCache) {
+        multiPartCache.clear()
+      }
+    }
+
     const val DEEP_LINK_BASE = "https://laralbir.github.io/img2asciiIM/"
 
     // Strict safe URL length limit to prevent WhatsApp or Telegram truncation at 4096 characters

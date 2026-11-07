@@ -8,5 +8,6 @@ sealed interface ImageDecodeError {
   data object SecurityViolation : ImageDecodeError
   data object CloudFileOfflineUnavailable : ImageDecodeError
   data object InvalidOrCorruptedImage : ImageDecodeError
+  data class IncompleteMultiPart(val currentPart: Int, val totalParts: Int) : ImageDecodeError
   data class IoFailure(val reason: String? = null) : ImageDecodeError
 }
