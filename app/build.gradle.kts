@@ -34,7 +34,13 @@ android {
       if (!keystoreBase64.isNullOrBlank()) {
         val keystoreFile = layout.buildDirectory.file("keystore/release.keystore").get().asFile
         keystoreFile.parentFile?.mkdirs()
-        keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+        val cleanedBase64 = keystoreBase64.replace("\\s+".toRegex(), "")
+        val decodedBytes = try {
+          Base64.getMimeDecoder().decode(cleanedBase64)
+        } catch (_: Exception) {
+          Base64.getDecoder().decode(cleanedBase64)
+        }
+        keystoreFile.writeBytes(decodedBytes)
         storeFile = keystoreFile
         storePassword = storePasswordVal
         keyAlias = keyAliasVal
