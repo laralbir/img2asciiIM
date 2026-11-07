@@ -6,6 +6,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,6 +36,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Link
@@ -51,6 +55,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -75,7 +80,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -122,6 +130,11 @@ object ConverterTestTags {
   const val BTN_CONFIG_APP_LINKS = "btn_config_app_links"
   const val BTN_CONFIG_APP_LINKS_CARD = "btn_config_app_links_card"
   const val HD_MODE_EXPANDED_CARD = "hd_mode_expanded_card"
+  const val TAB_REAL_IMAGE = "tab_real_image"
+  const val TAB_TEXT_ART = "tab_text_art"
+  const val REAL_IMAGE_CARD = "card_real_image"
+  const val REAL_IMAGE_VIEW = "view_real_image"
+  const val BTN_SAVE_IMAGE = "btn_save_image"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -421,6 +434,8 @@ fun ConverterScreen(
       ChatBubblePreviewSection(
         uiState = uiState,
         onToggleTheme = viewModel::onTogglePreviewBubbleTheme,
+        onSelectTab = viewModel::onSelectPreviewTab,
+        onSaveImage = viewModel::onSaveImageToGallery,
       )
 
       // 7. Photographic & Dither Adjustments
@@ -588,6 +603,8 @@ private fun CharsetModeSection(
 private fun ChatBubblePreviewSection(
   uiState: ConverterUiState,
   onToggleTheme: () -> Unit,
+  onSelectTab: (PreviewTab) -> Unit,
+  onSaveImage: () -> Unit,
 ) {
   val result = uiState.conversionResult
   val bubbleToggleDescription = stringResource(R.string.bubble_theme_toggle_desc)
@@ -621,17 +638,19 @@ private fun ChatBubblePreviewSection(
             )
           }
         }
-        IconButton(
-          onClick = onToggleTheme,
-          modifier = Modifier.size(32.dp).semantics {
-            contentDescription = bubbleToggleDescription
-          },
-        ) {
-          Icon(
-            imageVector = if (uiState.previewDarkBubble) Icons.Default.LightMode else Icons.Default.DarkMode,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-          )
+        if (uiState.previewTab == PreviewTab.TEXT_ART) {
+          IconButton(
+            onClick = onToggleTheme,
+            modifier = Modifier.size(32.dp).semantics {
+              contentDescription = bubbleToggleDescription
+            },
+          ) {
+            Icon(
+              imageVector = if (uiState.previewDarkBubble) Icons.Default.LightMode else Icons.Default.DarkMode,
+              contentDescription = null,
+              modifier = Modifier.size(20.dp),
+            )
+          }
         }
       }
     }
@@ -668,131 +687,202 @@ private fun ChatBubblePreviewSection(
         }
       }
     } else {
-      // Instagram proportional warning
-      if (result.proportionalFontWarning) {
-        Card(
-          modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.PROPORTIONAL_WARNING),
-          colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-          ),
-        ) {
-          Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            Icon(
-              imageVector = Icons.Default.Warning,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.secondary,
-              modifier = Modifier.size(18.dp),
-            )
-            Text(
-              text = stringResource(R.string.warning_instagram_proportional),
-              style = MaterialTheme.typography.bodySmall,
-            )
-          }
-        }
-      }
-
-      // Mobile width overflow warning (> 32 columns)
-      if (uiState.params.widthColumns > 32) {
-        Card(
-          modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.WIDTH_OVERFLOW_WARNING),
-          colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-          ),
-        ) {
-          Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            Icon(
-              imageVector = Icons.Default.Warning,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.error,
-              modifier = Modifier.size(18.dp),
-            )
-            Text(
-              text = "⚠️ Ancho de ${uiState.params.widthColumns} cols excede el ancho de pantalla móvil (~32 cols). En WhatsApp y Telegram las líneas se cortarán y la imagen se verá rota. Recomendado: 28–32 columnas.",
-              style = MaterialTheme.typography.bodySmall,
-            )
-          }
-        }
-      }
-
-      // Chat Bubble Container
-      val bubbleBgColor = if (uiState.previewDarkBubble) {
-        Color(0xFF131F2E) // Authentic dark chat bubble
-      } else {
-        Color(0xFFE7FFDB) // Authentic WhatsApp-like light green bubble
-      }
-      val bubbleTextColor = if (uiState.previewDarkBubble) {
-        Color(0xFFE3E8EC)
-      } else {
-        Color(0xFF111B21)
-      }
-
-      ElevatedCard(
-        modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.CHAT_BUBBLE_CARD),
-        colors = CardDefaults.elevatedCardColors(
-          containerColor = bubbleBgColor,
-          contentColor = bubbleTextColor,
-        ),
-        shape = RoundedCornerShape(16.dp),
+      // Tab selector: [ 🖼️ Foto Real (HD) ] y [ 💬 Arte de Texto ]
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-          // Bubble header metrics
-          Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-          ) {
-            Text(
-              text = "${result.charCount} / ${result.maxCharBudget} chars",
-              style = MaterialTheme.typography.labelSmall,
-              color = bubbleTextColor.copy(alpha = 0.7f),
-            )
-            Text(
-              text = "${result.columns} cols × ${result.rows} filas",
-              style = MaterialTheme.typography.labelSmall,
-              color = bubbleTextColor.copy(alpha = 0.7f),
-            )
-          }
+        FilterChip(
+          selected = uiState.previewTab == PreviewTab.REAL_IMAGE,
+          onClick = { onSelectTab(PreviewTab.REAL_IMAGE) },
+          label = { Text("🖼️ Foto Real (HD)") },
+          modifier = Modifier.weight(1f).testTag(ConverterTestTags.TAB_REAL_IMAGE),
+        )
+        FilterChip(
+          selected = uiState.previewTab == PreviewTab.TEXT_ART,
+          onClick = { onSelectTab(PreviewTab.TEXT_ART) },
+          label = { Text("💬 Arte de Texto") },
+          modifier = Modifier.weight(1f).testTag(ConverterTestTags.TAB_TEXT_ART),
+        )
+      }
 
-          // Monospace text art with horizontal scrolling
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .horizontalScroll(rememberScrollState()),
+      val previewBitmap = uiState.previewBitmap
+      if (uiState.previewTab == PreviewTab.REAL_IMAGE && previewBitmap != null) {
+        ElevatedCard(
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag(ConverterTestTags.REAL_IMAGE_CARD),
+          shape = RoundedCornerShape(16.dp),
+        ) {
+          Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
           ) {
-            SelectionContainer {
-              val previewContent = if (!uiState.includeAsciiArt) {
-                "https://laralbir.github.io/img2asciiIM/#data=..."
-              } else if (uiState.attachDeepLink) {
-                "${result.formattedMessage}\nhttps://laralbir.github.io/img2asciiIM/#data=..."
-              } else {
-                result.formattedMessage
-              }
+            Image(
+              bitmap = previewBitmap.asImageBitmap(),
+              contentDescription = "Fotografía original",
+              modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 180.dp, max = 360.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black)
+                .testTag(ConverterTestTags.REAL_IMAGE_VIEW),
+              contentScale = ContentScale.Fit,
+            )
 
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
               Text(
-                text = previewContent,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                lineHeight = 10.sp,
-                color = bubbleTextColor,
-                modifier = Modifier
-                  .testTag(ConverterTestTags.ASCII_TEXT)
-                  .clearAndSetSemantics {
-                    contentDescription = if (!uiState.includeAsciiArt) {
-                      "Modo solo enlace de alta resolución"
-                    } else {
-                      "Arte de texto con ${result.columns} columnas y ${result.rows} filas, longitud ${result.charCount} caracteres."
-                    }
-                  },
+                text = "${previewBitmap.width} × ${previewBitmap.height} px · 100% Offline",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
+              FilledTonalButton(
+                onClick = onSaveImage,
+                modifier = Modifier.testTag(ConverterTestTags.BTN_SAVE_IMAGE),
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Download,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "Guardar Foto")
+              }
+            }
+          }
+        }
+      } else {
+        // PreviewTab.TEXT_ART
+        // Instagram proportional warning
+        if (result.proportionalFontWarning) {
+          Card(
+            modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.PROPORTIONAL_WARNING),
+            colors = CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.secondaryContainer,
+              contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ),
+          ) {
+            Row(
+              modifier = Modifier.padding(10.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(18.dp),
+              )
+              Text(
+                text = stringResource(R.string.warning_instagram_proportional),
+                style = MaterialTheme.typography.bodySmall,
+              )
+            }
+          }
+        }
+
+        // Mobile width overflow warning (> 32 columns)
+        if (uiState.params.widthColumns > 32) {
+          Card(
+            modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.WIDTH_OVERFLOW_WARNING),
+            colors = CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
+              contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            ),
+          ) {
+            Row(
+              modifier = Modifier.padding(10.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(18.dp),
+              )
+              Text(
+                text = "⚠️ Ancho de ${uiState.params.widthColumns} cols excede el ancho de pantalla móvil (~32 cols). En WhatsApp y Telegram las líneas se cortarán y la imagen se verá rota. Recomendado: 28–32 columnas.",
+                style = MaterialTheme.typography.bodySmall,
+              )
+            }
+          }
+        }
+
+        // Chat Bubble Container
+        val bubbleBgColor = if (uiState.previewDarkBubble) {
+          Color(0xFF131F2E) // Authentic dark chat bubble
+        } else {
+          Color(0xFFE7FFDB) // Authentic WhatsApp-like light green bubble
+        }
+        val bubbleTextColor = if (uiState.previewDarkBubble) {
+          Color(0xFFE3E8EC)
+        } else {
+          Color(0xFF111B21)
+        }
+
+        ElevatedCard(
+          modifier = Modifier.fillMaxWidth().testTag(ConverterTestTags.CHAT_BUBBLE_CARD),
+          colors = CardDefaults.elevatedCardColors(
+            containerColor = bubbleBgColor,
+            contentColor = bubbleTextColor,
+          ),
+          shape = RoundedCornerShape(16.dp),
+        ) {
+          Column(modifier = Modifier.padding(12.dp)) {
+            // Bubble header metrics
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+              Text(
+                text = "${result.charCount} / ${result.maxCharBudget} chars",
+                style = MaterialTheme.typography.labelSmall,
+                color = bubbleTextColor.copy(alpha = 0.7f),
+              )
+              Text(
+                text = "${result.columns} cols × ${result.rows} filas",
+                style = MaterialTheme.typography.labelSmall,
+                color = bubbleTextColor.copy(alpha = 0.7f),
+              )
+            }
+
+            // Monospace text art with horizontal scrolling
+            Box(
+              modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            ) {
+              SelectionContainer {
+                val previewContent = if (!uiState.includeAsciiArt) {
+                  "https://laralbir.github.io/img2asciiIM/#data=..."
+                } else if (uiState.attachDeepLink) {
+                  "${result.formattedMessage}\nhttps://laralbir.github.io/img2asciiIM/#data=..."
+                } else {
+                  result.formattedMessage
+                }
+
+                Text(
+                  text = previewContent,
+                  fontFamily = FontFamily.Monospace,
+                  fontSize = 10.sp,
+                  lineHeight = 10.sp,
+                  color = bubbleTextColor,
+                  modifier = Modifier
+                    .testTag(ConverterTestTags.ASCII_TEXT)
+                    .clearAndSetSemantics {
+                      contentDescription = if (!uiState.includeAsciiArt) {
+                        "Modo solo enlace de alta resolución"
+                      } else {
+                        "Arte de texto con ${result.columns} columnas y ${result.rows} filas, longitud ${result.charCount} caracteres."
+                      }
+                    },
+                )
+              }
             }
           }
         }

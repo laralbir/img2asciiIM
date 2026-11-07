@@ -17,6 +17,7 @@ import com.laralbir.img2asciiim.domain.model.DecodedImage
 import com.laralbir.img2asciiim.domain.model.DomainResult
 import com.laralbir.img2asciiim.domain.model.ImPlatformPreset
 import com.laralbir.img2asciiim.domain.model.ImageDecodeError
+import com.laralbir.img2asciiim.domain.model.PixelGrid
 import com.laralbir.img2asciiim.domain.model.ShareOutcome
 import com.laralbir.img2asciiim.domain.repository.ImageSourceRepository
 import com.laralbir.img2asciiim.domain.repository.MessageShareGateway
@@ -73,6 +74,16 @@ class ConverterScreenRobolectricTest {
       lastSharedPreset = preset
       return ShareOutcome.OpenedDirectApp(preset.canonicalPackage)
     }
+
+    var saveImageSuccess: Boolean = true
+    var lastSavedPixelGrid: PixelGrid? = null
+    var lastSavedFilenamePrefix: String? = null
+
+    override fun saveImageToGallery(pixelGrid: PixelGrid, filenamePrefix: String): Boolean {
+      lastSavedPixelGrid = pixelGrid
+      lastSavedFilenamePrefix = filenamePrefix
+      return saveImageSuccess
+    }
   }
 
   @Test
@@ -117,6 +128,15 @@ class ConverterScreenRobolectricTest {
     composeTestRule.onNodeWithText("Braille HD").assertIsDisplayed()
     composeTestRule.onNodeWithText("ASCII").assertIsDisplayed()
     composeTestRule.onNodeWithText("Bloques").assertIsDisplayed()
+
+    // Real image preview card is displayed by default
+    composeTestRule.onNodeWithTag(ConverterTestTags.REAL_IMAGE_CARD).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.REAL_IMAGE_VIEW).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_SAVE_IMAGE).assertExists()
+
+    // Switch to Text Art tab
+    composeTestRule.onNodeWithTag(ConverterTestTags.TAB_TEXT_ART).performScrollTo().performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
 
     // Chat bubble card
     composeTestRule.onNodeWithTag(ConverterTestTags.CHAT_BUBBLE_CARD).assertExists()
@@ -214,6 +234,10 @@ class ConverterScreenRobolectricTest {
     composeTestRule.onNodeWithText("ASCII").performClick()
     testDispatcher.scheduler.advanceUntilIdle()
 
+    // Switch to Text Art tab
+    composeTestRule.onNodeWithTag(ConverterTestTags.TAB_TEXT_ART).performScrollTo().performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
+
     // Proportional warning should exist
     composeTestRule.onNodeWithTag(ConverterTestTags.PROPORTIONAL_WARNING).assertExists()
   }
@@ -241,6 +265,9 @@ class ConverterScreenRobolectricTest {
     }
 
     viewModel.onWidthColumnsChanged(56)
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.onNodeWithTag(ConverterTestTags.TAB_TEXT_ART).performScrollTo().performClick()
     testDispatcher.scheduler.advanceUntilIdle()
 
     composeTestRule.onNodeWithTag(ConverterTestTags.WIDTH_OVERFLOW_WARNING).assertExists()
@@ -318,6 +345,9 @@ class ConverterScreenRobolectricTest {
     testDispatcher.scheduler.advanceUntilIdle()
 
     composeTestRule.onNodeWithText("Selecciona una foto arriba para convertirla en arte de texto").assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ConverterTestTags.REAL_IMAGE_CARD).assertExists()
+    composeTestRule.onNodeWithTag(ConverterTestTags.TAB_TEXT_ART).performScrollTo().performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
     composeTestRule.onNodeWithTag(ConverterTestTags.ASCII_TEXT).assertExists()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_COPY).assertIsEnabled()
     composeTestRule.onNodeWithTag(ConverterTestTags.BTN_SHARE).assertIsEnabled()
@@ -353,7 +383,46 @@ class ConverterScreenRobolectricTest {
     composeTestRule.onNodeWithTag(ConverterTestTags.CHIP_INCLUDE_ASCII).performScrollTo().performClick()
     testDispatcher.scheduler.advanceUntilIdle()
 
+    // Switch to Text Art tab
+    composeTestRule.onNodeWithTag(ConverterTestTags.TAB_TEXT_ART).performScrollTo().performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
+
     // Accessibility content description reflects solo-link mode
     composeTestRule.onNodeWithTag(ConverterTestTags.ASCII_TEXT).performScrollTo().assertExists()
+  }
+
+  @Test
+  fun converterScreen_realImageTab_rendersImageAndClickingSaveButtonTriggersGateway() {
+    val repo = FakeImageSourceRepo()
+    val gateway = FakeShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repo,
+      messageShareGateway = gateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    composeTestRule.setContent {
+      Img2asciiIMTheme {
+        ConverterScreen(
+          viewModel = viewModel,
+          onPrepareCameraCaptureTarget = { null },
+        )
+      }
+    }
+
+    // Verify Real Image card and view are displayed
+    composeTestRule.onNodeWithTag(ConverterTestTags.REAL_IMAGE_CARD).performScrollTo().assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ConverterTestTags.REAL_IMAGE_VIEW).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Guardar Foto").assertIsDisplayed()
+
+    // Click Guardar Foto
+    composeTestRule.onNodeWithTag(ConverterTestTags.BTN_SAVE_IMAGE).performClick()
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    // Verify gateway received save call
+    kotlin.test.assertNotNull(gateway.lastSavedPixelGrid)
   }
 }

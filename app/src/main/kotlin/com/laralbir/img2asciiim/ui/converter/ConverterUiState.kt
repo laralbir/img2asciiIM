@@ -1,5 +1,6 @@
 package com.laralbir.img2asciiim.ui.converter
 
+import android.graphics.Bitmap
 import com.laralbir.img2asciiim.data.update.UpdateCheckResult
 import com.laralbir.img2asciiim.domain.model.AsciiConversionResult
 import com.laralbir.img2asciiim.domain.model.ConversionParams
@@ -17,6 +18,11 @@ enum class ImageSourceOrigin(val displayName: String) {
   CLIPBOARD("Portapapeles"),
 }
 
+enum class PreviewTab {
+  REAL_IMAGE,
+  TEXT_ART,
+}
+
 /**
  * Immutable UI state for the converter screen.
  *
@@ -31,6 +37,8 @@ data class ConverterUiState(
   val sourceDimensionsLabel: String = "",
   val params: ConversionParams = ConversionParams(),
   val previewDarkBubble: Boolean = true,
+  val previewBitmap: Bitmap? = null,
+  val previewTab: PreviewTab = PreviewTab.REAL_IMAGE,
   val includeAsciiArt: Boolean = true,
   val attachDeepLink: Boolean = false,
   val conversionResult: AsciiConversionResult? = null,

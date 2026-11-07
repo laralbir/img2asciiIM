@@ -3,7 +3,7 @@
 | Campo | Valor |
 | :--- | :--- |
 | **ID de Especificación** | `001-core-img2ascii-im` |
-| **Estado** | `IMPLEMENTADO — Actualizado con Cota Máxima de Enlace Seguro MAX_SAFE_URL_LENGTH = 3.800 Chars, Límite Duro de WhatsApp (4.096 Chars) y Guardia de Integridad RIFF WebP (2026-11-07)` |
+| **Estado** | `IMPLEMENTADO — Actualizado con Visualización de Foto Real (HD), Guardado en Galería (MediaStore) y Cota Segura 3.800 Chars (2026-11-07)` |
 | **Autor(es)** | `sdd-architect` |
 | **Fecha de Creación** | `2026-11-06` |
 | **Última Actualización** | `2026-11-07` |
@@ -63,6 +63,7 @@ Para ofrecer una experiencia 100 % fiable en cualquier circunstancia, `img2ascii
 | **HU-08** | `P0` | **Como** usuario fuera de tiendas comerciales, **quiero** comprobar in-app la disponibilidad de nuevas versiones oficiales desde GitHub Releases y actualizar mi APK firmado de forma asistida y segura, **para** mantenerme actualizado con total resiliencia sin fallos en vuelo. | Actualizaciones in-app y CI/CD firmado |
 | **HU-09** | `P0` | **Como** receptor de un mensaje sin conexión a internet (en pleno vuelo o en Modo Avión), **quiero** copiar el mensaje o enlace recibido en WhatsApp o Telegram y abrir `img2asciiIM` para que detecte automáticamente la imagen desde el portapapeles (o pulsar el chip «Portapapeles»), **para** ver la fotografía de forma inmediata y 100 % offline sin necesidad de navegador web. | Importación instantánea offline desde portapapeles |
 | **HU-10** | `P1` | **Como** usuario de Android, **quiero** acceder directamente desde la aplicación a los Ajustes de «Abrir de forma predeterminada» de Android, **para** configurar que los enlaces compatibles se abran siempre en `img2asciiIM` de manera nativa sin pasar por Google Chrome. | Enlace directo a configuración de App Links nativos |
+| **HU-11** | `P0` | **Como** destinatario de un enlace compartido por WhatsApp/Telegram, **quiero** ver la fotografía original en alta definición y a todo color dentro de la app, y poder guardarla en mi galería, además de ver el arte de texto si lo deseo. | Visualización de fotografía real HD y persistencia en galería |
 
 ---
 
@@ -440,6 +441,33 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
     ```
     Si el sistema o la capa del fabricante (OEM) no soporta dicha acción (`ActivityNotFoundException`), aplica un fallback seguro hacia `Settings.ACTION_APPLICATION_DETAILS_SETTINGS`, guiando al usuario a la sección «Abrir de forma predeterminada» para marcar «Abrir enlaces compatibles» y añadir el dominio `laralbir.github.io`.
 
+### RF-10: Visualización de Fotografía Real Decodificada y Guardado en Galería
+
+La aplicación **debe** proporcionar la visualización inmediata de la fotografía real decodificada en alta definición y a todo color junto con la capacidad de persistirla en el almacenamiento multimedia público del dispositivo sin requerir permisos invasivos en Android moderno:
+
+- **Criterio 10.1 — Generación de Bitmap de Vista Previa y Activación Predeterminada de «Foto Real (HD)»:**
+  - **Given:** Una imagen decodificada o cargada desde cualquier origen, con especial énfasis en flujos de recepción e importación de mensajes (`ImageSourceOrigin.CLIPBOARD`, `ImageSourceOrigin.DEEP_LINK` o `ImageSourceOrigin.INCOMING_SHARE`).
+  - **When:** El conversor/ViewModel procesa la imagen e inicializa el estado de visualización en `ConverterViewModel`.
+  - **Then:**
+    1. La aplicación genera un `Bitmap` de vista previa a todo color a partir del mapa de píxeles decodificado (`PixelGrid` / `previewBitmap`).
+    2. La interfaz conmuta y activa de forma automática y por defecto la pestaña de visualización **«Foto Real (HD)»**, permitiendo al receptor o usuario contemplar inmediatamente la fotografía original a todo color sin requerir toques adicionales.
+
+- **Criterio 10.2 — Selector Interactivo de Vista Previa por Pestañas («Foto Real (HD)» vs. «Arte de Texto»):**
+  - **Given:** Una imagen cargada en la pantalla principal de la aplicación.
+  - **When:** El usuario interactúa con el selector de pestañas ubicado sobre el área central de previsualización.
+  - **Then:**
+    1. La interfaz presenta dos pestañas claramente rotuladas y accesibles: **«Foto Real (HD)»** y **«Arte de Texto»**.
+    2. Al seleccionar la pestaña **«Foto Real (HD)»**, la app renderiza el mapa de bits original a todo color con escalado proporcional adaptativo (`ContentScale.Fit`), fondo de alto contraste y soporte de inspección visual nítida.
+    3. Al seleccionar la pestaña **«Arte de Texto»**, la app conmuta a la burbuja de chat con la matriz de caracteres de texto (Braille Unicode, ASCII o Bloques), permitiendo alternar el tema claro/oscuro y ajustar los controles de edición y motor en tiempo real.
+
+- **Criterio 10.3 — Acción «Guardar Foto» para Persistencia en Galería sin Permisos en Android 10+ (`MediaStore`):**
+  - **Given:** Una fotografía decodificada visible en la aplicación.
+  - **When:** El usuario pulsa la acción o botón **«Guardar Foto»** (ubicado en el visor de foto real y/o en la barra de acciones de la interfaz).
+  - **Then:**
+    1. La aplicación persiste el `Bitmap` decodificado en la galería pública del dispositivo mediante la API oficial `MediaStore.Images.Media` bajo el directorio relativo `Pictures/img2asciiIM/` (`RELATIVE_PATH = "Pictures/img2asciiIM"`, `MIME_TYPE = "image/png"` o `"image/jpeg"`).
+    2. La operación de guardado se ejecuta **100 % offline**, en un despachador de segundo plano (`Dispatchers.IO`), sin solicitar ni requerir ningún permiso de almacenamiento en tiempo de ejecución en Android 10+ (API 29+) gracias al modelo Scoped Storage del sistema.
+    3. Tras la persistencia exitosa, la imagen queda inmediatamente indexada y visible en Google Fotos y en la app Galería del sistema Android, y la interfaz proporciona retroalimentación inmediata al usuario (notificación háptica suave y mensaje Snackbar/Toast confirmando: *«Foto guardada en la galería (Pictures/img2asciiIM)»*).
+
 ---
 
 ## 4. Restricciones de Dominio e Invariantes Técnicos
@@ -512,6 +540,7 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
 | **CB-15** | **Portapapeles con payload WebP truncado o corrupto por copiado manual incompleto en el chat** | `DeepLinkImageCodec` aplica la guardia de integridad de cabecera RIFF WebP y captura de forma segura `IllegalArgumentException` o fallos de decodificación devolviendo `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`, informando al usuario en la UI para que copie el enlace completo. | `data/` + `ui/` |
 | **CB-16** | **Dispositivo OEM o versión Android sin soporte para `ACTION_APP_OPEN_BY_DEFAULT_SETTINGS`** | La app captura `ActivityNotFoundException` y redirige inmediatamente a `Settings.ACTION_APPLICATION_DETAILS_SETTINGS`, garantizando que el usuario acceda siempre a la configuración de la app en Ajustes del sistema. | `ui/` |
 | **CB-17** | **Payload truncado por cliente de mensajería (límite duro de 4.096 caracteres en WhatsApp o enlaces de versiones anteriores sin cota de 3.800 chars)** | Cuando un remitente envía un enlace de una versión antigua sin acotación o el cliente de mensajería (WhatsApp/Android) trunca la URL continua al alcanzar los 4.096 caracteres, faltan los bytes finales del WebP. En recepción (vía App Link, visor web o portapapeles), `DeepLinkImageCodec` comprueba la guardia de cabecera RIFF WebP ($\text{bytes.size} < \text{expectedSize}$), detecta el truncamiento preventivamente antes de decodificar (evitando que Android intente decodificar bytes incompletos y pinte una imagen en negro o corrupta) y devuelve `DomainResult.Failure(ImageDecodeError.InvalidOrCorruptedImage)`. La UI notifica que el enlace fue cortado por el cliente de mensajería y sugiere solicitar el reenvío desde una versión actualizada. | `data/` + `ui/` |
+| **CB-18** | **Fallo al persistir en almacenamiento multimedia (`MediaStore`) al pulsar «Guardar Foto»** | Capturar de forma segura `IOException` o `IllegalStateException` durante la escritura en `MediaStore`, liberando el descriptor abierto (`Uri`) de forma atómica y notificando en la interfaz con un mensaje amigable (*«No se pudo guardar la foto en la galería»*) sin provocar fallos de aplicación. | `data/` + `ui/` |
 
 ---
 
@@ -531,6 +560,7 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
 | `CA-07.1..07.5`, `CB-08`, `CB-09`, `CB-17` | `data` + `ui` | Unit JVM + Robolectric (`Slice 10`) | `DeepLinkImageCodecTest`, `ConverterViewModelTest`, `ConverterScreenRobolectricTest` |
 | `CA-08.1..08.5`, `RNF-08`, `CB-10` | `data` + `ci` | Unit JVM + CI/CD (`Slice 11`) | `GitHubUpdateCheckerTest`, `.github/workflows/release.yml` |
 | `CA-01.7`, `CA-09.1..09.5`, `RNF-09`, `CB-13..17` | `data` + `ui` | Unit JVM + Robolectric (`Slice 12`) | `ClipboardImageExtractorTest`, `ConverterViewModelClipboardTest`, `NativeLinksSettingsTest` |
+| `CA-10.1`, `CA-10.2`, `CA-10.3`, `CB-18` | `ui` + `data` | Unit JVM + Robolectric (`Slice 13`) | `RealPhotoViewerTest`, `SaveImageToGalleryTest` |
 
 ---
 
@@ -595,11 +625,16 @@ La aplicación **debe** ofrecer una solución completa y de máxima resiliencia 
 - **Opción B:** Exclusivamente chip manual en la barra de origen, sin detección automática en `onResume` ni acceso asistido a los Ajustes de enlaces de Android.
 - **Estado:** `[x] Aprobada: Opción A`
 
+### DD-11: Visualización de Fotografía Real Decodificada (Pestañas Duales HD/Texto) y Persistencia en Galería vía MediaStore
+- **Opción A (Recomendada y Aprobada):** Arquitectura de visualización dual integrada directamente en el contenedor central de previsualización mediante un selector de pestañas (**«Foto Real (HD)»** y **«Arte de Texto»**). Al decodificar o importar imágenes desde portapapeles, deep link o share entrante, la app activa por defecto la pestaña «Foto Real (HD)», garantizando que el receptor vea la imagen original al instante. Persistencia directa en galería mediante `MediaStore.Images.Media` en `Pictures/img2asciiIM/` (100% offline, sin permisos en Android 10+).
+- **Opción B:** Ventana modal flotante o actividad separada para ver la foto real y exportación dependiendo exclusivamente del Share Sheet del sistema sin guardado directo en galería.
+- **Estado:** `[x] Aprobada: Opción A`
+
 ---
 
 ## 9. Registro de Aprobación (*Sign-off*)
 
-- [x] Todos los requisitos (`RF-01`..`RF-05`, `RNF-01`..`RNF-06`) cuentan con criterios **Given / When / Then** deterministas y trazables.
+- [x] Todos los requisitos (`RF-01`..`RF-10`, `RNF-01`..`RNF-09`) cuentan con criterios **Given / When / Then** deterministas y trazables.
 - [x] El plan arquitectónico ([`plan.md`](plan.md)) y la hoja de ruta TDD ([`tasks.md`](tasks.md)) están alineados con esta especificación.
-- [x] **Decisiones Abiertas (`DD-01`..`DD-05`) confirmadas por el usuario (`Opción A` en todas).**
+- [x] **Decisiones Abiertas (`DD-01`..`DD-11`) confirmadas por el usuario (`Opción A` en todas).**
 - [x] **Estado cambiado a `APROBADO` para habilitar el Ciclo TDD 1 (`2026-11-06`).**

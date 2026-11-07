@@ -1,5 +1,6 @@
 package com.laralbir.img2asciiim.ui.converter
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -294,6 +295,24 @@ class ConverterViewModel(
     _uiState.update { state -> state.copy(previewDarkBubble = !state.previewDarkBubble) }
   }
 
+  fun onSelectPreviewTab(tab: PreviewTab) {
+    _uiState.update { it.copy(previewTab = tab) }
+  }
+
+  fun onSaveImageToGallery() {
+    val decoded = currentDecodedImage
+    if (decoded == null) {
+      emitEffect(ConverterUiEffect.ShowSnackbar("No se pudo guardar la foto"))
+      return
+    }
+    val success = messageShareGateway.saveImageToGallery(decoded.pixelGrid)
+    if (success) {
+      emitEffect(ConverterUiEffect.ShowSnackbar("Foto guardada en la Galería"))
+    } else {
+      emitEffect(ConverterUiEffect.ShowSnackbar("No se pudo guardar la foto"))
+    }
+  }
+
   fun onToggleIncludeAsciiArt(include: Boolean) {
     _uiState.update { state ->
       val newInclude = include
@@ -482,13 +501,36 @@ class ConverterViewModel(
     val dimensionsLabel = formatDimensions(decoded.originalWidth, decoded.originalHeight)
     val activeParams = _uiState.value.params
 
+    val bitmap = try {
+      Bitmap.createBitmap(
+        decoded.pixelGrid.argbPixels,
+        decoded.pixelGrid.width,
+        decoded.pixelGrid.height,
+        Bitmap.Config.ARGB_8888,
+      )
+    } catch (_: Throwable) {
+      null
+    }
+
     _uiState.update { state ->
+      val resolvedTab = if (
+        origin == ImageSourceOrigin.CLIPBOARD ||
+        origin == ImageSourceOrigin.DEEP_LINK ||
+        origin == ImageSourceOrigin.INCOMING_SHARE
+      ) {
+        PreviewTab.REAL_IMAGE
+      } else {
+        state.previewTab
+      }
+
       state.copy(
         isLoadingImage = false,
         isConverting = true,
         sourceOrigin = origin,
         sourceLabel = resolvedLabel,
         sourceDimensionsLabel = dimensionsLabel,
+        previewBitmap = bitmap,
+        previewTab = resolvedTab,
         errorBannerMessage = null,
       )
     }

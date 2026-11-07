@@ -17,9 +17,10 @@
 7. [Paso 3: Ajustar el Estilo y la Nitidez (Recetas Rápidas)](#7-paso-3-ajustar-el-estilo-y-la-nitidez-recetas-rápidas)
 8. [Paso 4: Elegir Qué Enviar (Arte de Texto y/o Enlace a Foto HD)](#8-paso-4-elegir-qué-enviar-arte-de-texto-yo-enlace-a-foto-hd)
 9. [Paso 5: Enviar en 1 Toque o Copiar al Portapapeles](#9-paso-5-enviar-en-1-toque-o-copiar-al-portapapeles)
-10. [Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)](#10-cómo-funciona-el-enlace-hd-autónomo-y-el-visor-web-d)
-11. [Comprobación y Actualizaciones In-App desde GitHub Releases](#11-comprobación-y-actualizaciones-in-app-desde-github-releases)
-12. [Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos](#12-preguntas-frecuentes-faq-y-solución-de-problemas-rápidos)
+10. [Visualización de la Foto Real y Guardado en la Galería](#10-visualización-de-la-foto-real-y-guardado-en-la-galería)
+11. [Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)](#11-cómo-funciona-el-enlace-hd-autónomo-y-el-visor-web-d)
+12. [Comprobación y Actualizaciones In-App desde GitHub Releases](#12-comprobación-y-actualizaciones-in-app-desde-github-releases)
+13. [Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos](#13-preguntas-frecuentes-faq-y-solución-de-problemas-rápidos)
 
 ---
 
@@ -120,7 +121,7 @@ flowchart TD
    - **Chip manual «Portapapeles»:** También puedes pulsar en cualquier momento el chip interactivo **«Portapapeles»** situado en la barra superior de origen de imagen.
 
 3. **¡La fotografía se muestra al instante sin conexión a internet!:**  
-   El motor decodifica el formato WebP en tu procesador en menos de `150 ms`. Verás la fotografía original a todo color con su nitidez completa, sin necesidad de navegador, sin gastar megabytes de datos y funcionando al 100 % en Modo Avión.
+   El motor decodifica el formato WebP en tu procesador en menos de `150 ms`. La aplicación activa por defecto la pestaña **«Foto Real (HD)»**, mostrándote de inmediato la fotografía original a todo color con su máxima nitidez, lista para contemplar o pulsar **«Guardar Foto»** para almacenarla en tu galería (ver [Visualización de la Foto Real y Guardado en la Galería](#10-visualización-de-la-foto-real-y-guardado-en-la-galería)), sin necesidad de navegador, sin gastar megabytes de datos y funcionando al 100 % en Modo Avión.
 
 ---
 
@@ -357,7 +358,65 @@ Cuando la vista previa de burbuja y los componentes seleccionados se vean a tu g
 
 ---
 
-## 10. Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)
+## 10. Visualización de la Foto Real y Guardado en la Galería
+
+Uno de los mayores avances de `img2asciiIM` es que no solo te permite convertir fotos a caracteres de texto: cuando recibes un enlace (`#d=...`), abres una imagen compartida o importas desde el portapapeles, la aplicación **reconstruye la fotografía real a todo color en alta definición** y te permite guardarla directamente en el carrete de tu teléfono.
+
+```mermaid
+flowchart TD
+    Origen["Foto recibida o cargada\n(Enlace #d=..., Portapapeles, Galería o Share Sheet)"] --> Decod["Decodificación WebP en memoria (100% offline)"]
+    Decod --> PestañaHD["Pestaña activa por defecto: 'Foto Real (HD)'\nFotografía original a todo color en alta definición"]
+    PestañaHD --> Selector{"Selector interactivo de pestañas"}
+    Selector -->|"Pestaña 'Foto Real (HD)'"| VerHD["Inspeccionar fotografía original nítida a color"]
+    Selector -->|"Pestaña 'Arte de Texto'"| VerArte["Ver recreación en burbuja de chat (Braille / ASCII / Bloques)"]
+    VerHD --> Guardar["Botón 'Guardar Foto'"]
+    Guardar --> MediaStore["Guardado en Galería pública (Pictures/img2asciiIM)\nVisible al instante en Google Fotos y Galería del sistema\n100% Offline · Cero permisos en Android 10+"]
+```
+
+### Visualización Inmediata en Alta Definición al Abrir o Copiar un Enlace
+
+Cuando tu contacto te envía una foto a través del Wi-Fi del avión (como mensaje con enlace `#d=...`) y lo abres mediante **App Link nativo** o lo copias en WhatsApp/Telegram y abres la app (ingesta desde **Portapapeles**):
+
+1. **Apertura directa en Foto Real:** La aplicación detecta el payload WebP, lo decodifica en milisegundos en la memoria local de tu teléfono y **activa automáticamente la pestaña «Foto Real (HD)» como vista predeterminada**.
+2. **Cero esperas:** No necesitas pulsar botones adicionales ni activar modos especiales: la fotografía real a todo color aparece inmediatamente en el centro de la pantalla, con la misma resolución y tonalidades del archivo original.
+3. **100 % sin conexión:** Todo el renderizado se completa en tu procesador en menos de 150 ms sin requerir datos móviles, sin consultar servidores externos y funcionando al 100 % en Modo Avión.
+
+### El Selector Interactivo de Pestañas: «Foto Real (HD)» vs. «Arte de Texto»
+
+Justo encima de la pantalla de visualización encontrarás un selector con dos pestañas interactivas diseñadas para ofrecerte lo mejor de los dos mundos:
+
+- **Pestaña «Foto Real (HD)»:**
+  - Muestra el **bitmap original a todo color** en alta fidelidad.
+  - Ajusta la imagen de manera óptima a la pantalla (`Fit`) preservando su relación de aspecto original, sobre una superficie de alto contraste que facilita apreciar rostros, carteles, mapas o paisajes.
+  - Ofrece acceso directo al botón **«Guardar Foto»** para descargar la imagen en tu almacenamiento.
+
+- **Pestaña «Arte de Texto»:**
+  - Muestra la **burbuja de chat interactiva** con el dibujo en caracteres de texto (**Braille Unicode `⠀..⣿`**, **ASCII clásico** o **Bloques**).
+  - Permite simular el fondo de tu aplicación de mensajería (conmutador **Burbuja Clara / Burbuja Oscura**).
+  - Muestra las dimensiones exactas (`columnas × filas`) y el contador de caracteres frente al límite de la app seleccionada (`WhatsApp`, `Telegram` o `Instagram`).
+  - Habilita los controles de edición en vivo (brillo, contraste, ancho en columnas, tramado *dithering* e inversión de tema).
+
+Puedes alternar entre ambas pestañas tantas veces como quieras con un solo toque, comparando la foto original con su versión en arte de texto.
+
+### Guardar la Foto en la Galería en 1 Toque (`Pictures/img2asciiIM`)
+
+Si has recibido una foto importante de un viaje (un plano de metro, una tarjeta de embarque, la reserva del hotel o una foto familiar) y quieres conservarla en tu teléfono para siempre o editarla en otra aplicación, no necesitas hacer capturas de pantalla:
+
+1. Pulsa el botón **«Guardar Foto»** (con icono de descarga/disco) situado en el visor de Foto Real o en la barra de acciones.
+2. La app escribe el mapa de bits decodificado directamente en el almacenamiento público del dispositivo a través de la API oficial **`MediaStore`** de Android.
+3. **¿Dónde se guarda?** La imagen se almacena en la carpeta estándar:
+   ```text
+   Pictures/img2asciiIM/
+   ```
+4. **Indexación inmediata:** La foto aparece al instante en **Google Fotos**, en la app **Galería** de Samsung, Xiaomi, Motorola, Pixel o cualquier fabricante, dentro del álbum **img2asciiIM**.
+
+> [!IMPORTANT]
+> **Privacidad y cero permisos en Android 10+ (API 29+):**  
+> Gracias a la integración con `MediaStore` y el modelo de almacenamiento seguro (*Scoped Storage*) de Android moderno, **`img2asciiIM` NO solicita ningún permiso de almacenamiento en tiempo de ejecución**. La aplicación guarda la imagen en la galería pública sin pedir acceso a tus fotos personales ni a tus archivos privados. Además, el guardado se ejecuta **100 % offline** en segundo plano, sin consumir batería ni congelar la interfaz.
+
+---
+
+## 11. Cómo Funciona el Enlace HD Autónomo y el Visor Web (`#d=...`)
 
 Tal vez te preguntes: *¿Cómo es posible enviar una foto dentro de un enlace web si el Wi-Fi del avión tiene bloqueada la subida de fotos y no me deja navegar por páginas web?*
 
@@ -413,7 +472,7 @@ flowchart TD
 
 ---
 
-## 11. Comprobación y Actualizaciones In-App desde GitHub Releases
+## 12. Comprobación y Actualizaciones In-App desde GitHub Releases
 
 `img2asciiIM` es un proyecto de software libre y privado que no depende de los servicios privativos de **Google Play Store**. Para que siempre disfrutes de las últimas mejoras y correcciones sin complicaciones, la aplicación incluye su propio **sistema nativo de comprobación y actualización in-app**:
 
@@ -441,7 +500,7 @@ Cada actualización oficial de `img2asciiIM` se compila y firma automáticamente
 
 ---
 
-## 12. Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos
+## 13. Preguntas Frecuentes (FAQ) y Solución de Problemas Rápidos
 
 ### «¿Qué hago si al tocar un enlace en WhatsApp o Telegram se abre Chrome y da error de conexión en el avión?»
 **Causa:** Android intenta abrir los enlaces web `https://...` en Chrome de forma predeterminada, pero el Wi-Fi satelital del avión bloquea la navegación web ordinaria.  
@@ -452,6 +511,14 @@ Cada actualización oficial de `img2asciiIM` se compila y firma automáticamente
 
 ### «Al usar el botón o chip "Portapapeles", ¿es privado? ¿Guarda `img2asciiIM` mis mensajes o textos privados?»
 **Privacidad absoluta y efímera.** `img2asciiIM` analiza el portapapeles única y exclusivamente para buscar si contiene un enlace o payload fotográfico de la app (`#d=...`). Si copiaste un mensaje que incluía texto de conversación, comentarios o datos personales, la aplicación **jamás guarda, no registra ni transmite nada a ningún servidor**. Todo el procesado ocurre en la memoria volátil de tu propio teléfono y se destruye al cerrar la app.
+
+---
+
+### «¿Dónde se guardan las fotos al pulsar "Guardar Foto" y qué permisos necesita?»
+**En tu galería oficial sin ningún permiso invasivo.**  
+- **Ubicación en tu móvil:** Las imágenes se guardan directamente en el directorio estándar de medios de Android: `Pictures/img2asciiIM/`. Al guardarse, aparecen inmediatamente indexadas en **Google Fotos** y en la app **Galería** de tu móvil dentro del álbum *img2asciiIM*.
+- **Cero permisos en Android 10+:** Gracias a la API moderna `MediaStore` y al almacenamiento aislado (*Scoped Storage*), la aplicación puede guardar sus propias fotos en tu galería pública sin pedirte ningún permiso peligroso de lectura ni acceso global a tus fotos privadas.
+- **100 % sin internet:** La imagen se extrae del archivo WebP en memoria y se guarda en tu disco local sin conectarse a internet, funcionando a la perfección en Modo Avión.
 
 ---
 

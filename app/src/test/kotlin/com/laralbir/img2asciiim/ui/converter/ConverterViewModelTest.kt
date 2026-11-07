@@ -32,8 +32,13 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class ConverterViewModelTest {
 
   private val testDispatcher = StandardTestDispatcher()
@@ -888,6 +893,10 @@ class ConverterViewModelTest {
     assertEquals("Enlace del portapapeles", state.sourceLabel)
     assertEquals("64 × 48 px", state.sourceDimensionsLabel)
     assertNotNull(state.conversionResult)
+    assertEquals(PreviewTab.REAL_IMAGE, state.previewTab)
+    assertNotNull(state.previewBitmap)
+    assertEquals(64, state.previewBitmap?.width)
+    assertEquals(48, state.previewBitmap?.height)
   }
 
   @Test
@@ -1016,6 +1025,98 @@ class ConverterViewModelTest {
       cancelAndIgnoreRemainingEvents()
     }
   }
+
+  @Test
+  fun onSelectPreviewTab_switchesTabCorrectly() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    assertEquals(PreviewTab.REAL_IMAGE, viewModel.uiState.value.previewTab)
+
+    viewModel.onSelectPreviewTab(PreviewTab.TEXT_ART)
+    assertEquals(PreviewTab.TEXT_ART, viewModel.uiState.value.previewTab)
+
+    viewModel.onSelectPreviewTab(PreviewTab.REAL_IMAGE)
+    assertEquals(PreviewTab.REAL_IMAGE, viewModel.uiState.value.previewTab)
+  }
+
+  @Test
+  fun onSaveImageToGallery_whenSuccess_callsGatewayAndEmitsSuccessSnackbar() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    shareGateway.saveImageSuccess = true
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.onSaveImageToGallery()
+      val effect = awaitItem()
+      assertIs<ConverterUiEffect.ShowSnackbar>(effect)
+      assertEquals("Foto guardada en la Galería", effect.message)
+      assertNotNull(shareGateway.lastSavedPixelGrid)
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  @Test
+  fun onSaveImageToGallery_whenGatewayFails_emitsErrorSnackbar() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    shareGateway.saveImageSuccess = false
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = true,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.onSaveImageToGallery()
+      val effect = awaitItem()
+      assertIs<ConverterUiEffect.ShowSnackbar>(effect)
+      assertEquals("No se pudo guardar la foto", effect.message)
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  @Test
+  fun onSaveImageToGallery_whenNoImageLoaded_emitsErrorSnackbar() = runTest(testDispatcher) {
+    val repository = FakeImageSourceRepository()
+    val shareGateway = FakeMessageShareGateway()
+    val viewModel = ConverterViewModel(
+      imageSourceRepository = repository,
+      messageShareGateway = shareGateway,
+      computeDispatcher = testDispatcher,
+      ioDispatcher = testDispatcher,
+      loadDemoOnStart = false,
+    )
+    advanceUntilIdle()
+
+    viewModel.effects.test {
+      viewModel.onSaveImageToGallery()
+      val effect = awaitItem()
+      assertIs<ConverterUiEffect.ShowSnackbar>(effect)
+      assertEquals("No se pudo guardar la foto", effect.message)
+      assertNull(shareGateway.lastSavedPixelGrid)
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
 }
 
 private class FakeImageSourceRepository(
@@ -1054,6 +1155,12 @@ private class FakeMessageShareGateway : MessageShareGateway {
     @JvmName("getFakeClipboardTextProp") get() = clipboardContent ?: lastCopiedText
     @JvmName("setFakeClipboardTextProp") set(value) { clipboardContent = value }
 
+  var saveImageSuccess: Boolean = true
+  var lastSavedPixelGrid: PixelGrid? = null
+    private set
+  var lastSavedFilenamePrefix: String? = null
+    private set
+
   override fun copyToClipboard(text: String) {
     lastCopiedText = text
     clipboardContent = text
@@ -1065,6 +1172,12 @@ private class FakeMessageShareGateway : MessageShareGateway {
     lastSharedText = text
     lastSharedPreset = preset
     return nextShareOutcome
+  }
+
+  override fun saveImageToGallery(pixelGrid: PixelGrid, filenamePrefix: String): Boolean {
+    lastSavedPixelGrid = pixelGrid
+    lastSavedFilenamePrefix = filenamePrefix
+    return saveImageSuccess
   }
 }
 

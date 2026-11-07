@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageInfo
 import androidx.test.core.app.ApplicationProvider
 import com.laralbir.img2asciiim.domain.model.ImPlatformPreset
+import com.laralbir.img2asciiim.domain.model.PixelGrid
 import com.laralbir.img2asciiim.domain.model.ShareOutcome
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -130,6 +131,20 @@ class AndroidMessageShareGatewayTest {
     val chooser = launchedIntents.single()
     assertEquals(Intent.ACTION_CHOOSER, chooser.action)
     assertTrue((chooser.flags and Intent.FLAG_ACTIVITY_NEW_TASK) != 0)
+  }
+
+  @Test
+  fun saveImageToGallery_savesBitmapToMediaStoreSuccessfully() {
+    val gateway = AndroidMessageShareGateway(context)
+    val grid = PixelGrid(
+      width = 4,
+      height = 4,
+      argbPixels = IntArray(16) { 0xFF00FF00.toInt() },
+    )
+
+    val saved = gateway.saveImageToGallery(grid, filenamePrefix = "test_img")
+
+    assertTrue(saved)
   }
 
   private fun installPackage(packageName: String) {

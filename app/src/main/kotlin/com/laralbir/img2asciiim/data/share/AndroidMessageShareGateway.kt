@@ -3,13 +3,21 @@ package com.laralbir.img2asciiim.data.share
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.media.MediaScannerConnection
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import com.laralbir.img2asciiim.domain.model.ImPlatformPreset
+import com.laralbir.img2asciiim.domain.model.PixelGrid
 import com.laralbir.img2asciiim.domain.model.ShareOutcome
 import com.laralbir.img2asciiim.domain.repository.MessageShareGateway
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Android implementation of [MessageShareGateway] enforcing Clipboard-First delivery for
@@ -83,6 +91,67 @@ class AndroidMessageShareGateway(
     activityStarter(chooserIntent)
 
     return ShareOutcome.OpenedSystemChooser(copiedToClipboard = copiedFirst)
+  }
+
+  override fun saveImageToGallery(
+    pixelGrid: PixelGrid,
+    filenamePrefix: String,
+  ): Boolean = try {
+    val bitmap = Bitmap.createBitmap(
+      pixelGrid.argbPixels,
+      pixelGrid.width,
+      pixelGrid.height,
+      Bitmap.Config.ARGB_8888,
+    )
+    val filename = "${filenamePrefix}_${System.currentTimeMillis()}.png"
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/img2asciiIM")
+        put(MediaStore.Images.Media.IS_PENDING, 1)
+      }
+      val resolver = context.contentResolver
+      val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        ?: return false
+
+      try {
+        resolver.openOutputStream(uri)?.use { outputStream ->
+          if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
+            resolver.delete(uri, null, null)
+            return false
+          }
+        } ?: run {
+          resolver.delete(uri, null, null)
+          return false
+        }
+        contentValues.clear()
+        contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+        resolver.update(uri, contentValues, null, null)
+        true
+      } catch (e: Exception) {
+        resolver.delete(uri, null, null)
+        false
+      }
+    } else {
+      @Suppress("DEPRECATION")
+      val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+      val appDir = File(picturesDir, "img2asciiIM")
+      if (!appDir.exists()) {
+        appDir.mkdirs()
+      }
+      val file = File(appDir, filename)
+      FileOutputStream(file).use { outputStream ->
+        if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
+          return false
+        }
+      }
+      MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf("image/png"), null)
+      true
+    }
+  } catch (e: Exception) {
+    false
   }
 
   private fun isPackageInstalled(packageName: String): Boolean = try {
