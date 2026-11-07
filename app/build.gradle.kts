@@ -1,4 +1,7 @@
+import java.io.InputStream
+import java.security.KeyStore
 import java.util.Base64
+import java.util.Collections
 
 plugins {
   alias(libs.plugins.android.application)
@@ -31,25 +34,109 @@ android {
       val keyPasswordVal = System.getenv("KEY_PASSWORD")
       val storePasswordVal = System.getenv("KEYSTORE_PASSWORD")
 
-      if (!keystoreBase64.isNullOrBlank()) {
-        val keystoreFile = layout.buildDirectory.file("keystore/release.keystore").get().asFile
-        keystoreFile.parentFile?.mkdirs()
-        val cleanedBase64 = keystoreBase64.replace("\\s+".toRegex(), "")
-        val decodedBytes = try {
-          Base64.getMimeDecoder().decode(cleanedBase64)
-        } catch (_: Exception) {
-          Base64.getDecoder().decode(cleanedBase64)
+      val resolvedStoreFile = when {
+        !keystoreBase64.isNullOrBlank() -> {
+          val keystoreFile = layout.buildDirectory.file("keystore/release.keystore").get().asFile
+          keystoreFile.parentFile?.mkdirs()
+          val cleanedBase64 = keystoreBase64.replace("\\s+".toRegex(), "")
+          val decodedBytes = try {
+            Base64.getMimeDecoder().decode(cleanedBase64)
+          } catch (_: Exception) {
+            Base64.getDecoder().decode(cleanedBase64)
+          }
+          keystoreFile.writeBytes(decodedBytes)
+          keystoreFile
         }
-        keystoreFile.writeBytes(decodedBytes)
-        storeFile = keystoreFile
-        storePassword = storePasswordVal
-        keyAlias = keyAliasVal
-        keyPassword = keyPasswordVal
-      } else if (!keystorePath.isNullOrBlank() && file(keystorePath).exists()) {
-        storeFile = file(keystorePath)
-        storePassword = storePasswordVal
-        keyAlias = keyAliasVal
-        keyPassword = keyPasswordVal
+        !keystorePath.isNullOrBlank() && file(keystorePath).exists() -> file(keystorePath)
+        else -> null
+      }
+
+      if (resolvedStoreFile != null) {
+        var resolvedStorePassword = storePasswordVal?.trim() ?: storePasswordVal
+        var resolvedKeyAlias = keyAliasVal?.trim() ?: keyAliasVal
+        var resolvedKeyPassword = keyPasswordVal?.trim() ?: keyPasswordVal
+
+        try {
+          val storePassCandidates = listOfNotNull(
+            storePasswordVal,
+            storePasswordVal?.trim(),
+            storePasswordVal?.removeSurrounding("\"")?.trim(),
+            storePasswordVal?.removeSurrounding("'")?.trim(),
+            keyPasswordVal,
+            keyPasswordVal?.trim(),
+            keyPasswordVal?.removeSurrounding("\"")?.trim(),
+            keyPasswordVal?.removeSurrounding("'")?.trim()
+          ).distinct()
+
+          var loadedKs: KeyStore? = null
+          for (sp in storePassCandidates) {
+            try {
+              val ks = KeyStore.getInstance(resolvedStoreFile, sp.toCharArray())
+              loadedKs = ks
+              resolvedStorePassword = sp
+              break
+            } catch (_: Exception) {
+              for (type in listOf("PKCS12", "JKS")) {
+                try {
+                  val ks = KeyStore.getInstance(type)
+                  resolvedStoreFile.inputStream().use { stream: InputStream ->
+                    ks.load(stream, sp.toCharArray())
+                  }
+                  loadedKs = ks
+                  resolvedStorePassword = sp
+                  break
+                } catch (_: Exception) {}
+              }
+              if (loadedKs != null) break
+            }
+          }
+
+          if (loadedKs != null) {
+            val aliases: List<String> = Collections.list(loadedKs.aliases())
+            if (aliases.isNotEmpty()) {
+              val matchedAlias = aliases.find { aliasName: String -> aliasName == resolvedKeyAlias }
+                ?: aliases.find { aliasName: String -> aliasName.equals(resolvedKeyAlias, ignoreCase = true) }
+                ?: if (aliases.size == 1) aliases.first() else resolvedKeyAlias
+
+              if (matchedAlias != null) {
+                resolvedKeyAlias = matchedAlias
+
+                val keyPassCandidates = listOfNotNull(
+                  keyPasswordVal,
+                  keyPasswordVal?.trim(),
+                  keyPasswordVal?.removeSurrounding("\"")?.trim(),
+                  keyPasswordVal?.removeSurrounding("'")?.trim(),
+                  resolvedStorePassword,
+                  resolvedStorePassword?.trim(),
+                  storePasswordVal,
+                  storePasswordVal?.trim(),
+                  storePasswordVal?.removeSurrounding("\"")?.trim(),
+                  storePasswordVal?.removeSurrounding("'")?.trim(),
+                  ""
+                ).distinct()
+
+                for (kp in keyPassCandidates) {
+                  try {
+                    val keyEntry = loadedKs.getKey(matchedAlias, kp.toCharArray())
+                    if (keyEntry != null) {
+                      resolvedKeyPassword = kp
+                      break
+                    }
+                  } catch (_: Exception) {
+                    // try next candidate
+                  }
+                }
+              }
+            }
+          }
+        } catch (_: Exception) {
+          // If automatic inspection encounters any exception, proceed with defaults
+        }
+
+        storeFile = resolvedStoreFile
+        storePassword = resolvedStorePassword
+        keyAlias = resolvedKeyAlias
+        keyPassword = resolvedKeyPassword
       } else {
         // Fallback to debug keystore for development / local assembleRelease builds
         val debugSigning = getByName("debug")
